@@ -7,9 +7,11 @@
   ╚══╝╚══╝ ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝     ╚═════╝  ╚═════╝ ╚══════╝
 ```
 
-A lightweight, local-first event bridge for the wicked-\* ecosystem.
+A lightweight, local-first event bus for AI agents and developer tools.
 
-SQLite-backed, single-host, poll-based delivery with at-least-once semantics. No network transport, no external dependencies beyond SQLite. Events stay on your machine.
+SQLite-backed, single-host, poll-based delivery with at-least-once semantics. No servers, no network transport, no infrastructure. Events stay on your machine.
+
+Built for agent ecosystems where multiple tools need to communicate without coupling to each other — AI coding assistants, test runners, knowledge systems, deployment tools, or anything that benefits from local event-driven architecture.
 
 ## Quick Start
 
@@ -124,13 +126,15 @@ Auto-detects installed CLIs and copies skills. Available skills:
 | `wicked-bus/naming` | Event naming conventions |
 | `wicked-bus/query` | Query and debug |
 
-## Key Concepts
+## Why wicked-bus?
 
-- **Local-first**: everything lives in `~/.something-wicked/wicked-bus/bus.db`. No network, no servers.
-- **At-least-once delivery**: cursors persist across restarts. Unacked events are re-delivered.
-- **Fire-and-forget**: integrations are non-blocking. The bus never slows the caller.
-- **Graceful degradation**: if the bus isn't installed, callers log a debug message and continue.
-- **Two-timer TTL**: events have `dedup_expires_at` (24h default, row deletion) and `expires_at` (72h default, visibility filter).
+Agent ecosystems have a communication problem. Tools that should work together — test runners, code reviewers, knowledge systems, deployment pipelines — end up tightly coupled or completely siloed. wicked-bus solves this with a dead-simple local event bridge.
+
+- **Local-first**: everything lives in a single SQLite file. No servers to run, no ports to manage, no infrastructure.
+- **At-least-once delivery**: cursors persist across restarts. Unacked events are re-delivered. No lost events.
+- **Fire-and-forget**: producers are non-blocking. The bus never slows the caller. If it's not installed, callers degrade gracefully.
+- **Agent-native**: designed for AI coding assistants and the tools around them. Ships with skills for Claude, Gemini, Copilot, Codex, and Cursor.
+- **Two-timer TTL**: events auto-expire. No manual cleanup, no unbounded growth.
 
 ## Documentation
 

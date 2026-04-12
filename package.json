@@ -1,7 +1,7 @@
 {
   "name": "wicked-bus",
   "version": "1.0.0",
-  "description": "A lightweight, local-first SQLite event bridge for the wicked-* ecosystem",
+  "description": "Lightweight, local-first SQLite event bus for AI agents and developer tools",
   "type": "module",
   "exports": {
     ".": {
@@ -47,7 +47,10 @@
     "event-bus",
     "sqlite",
     "local-first",
-    "wicked"
+    "ai-agents",
+    "developer-tools",
+    "cursor-poll",
+    "at-least-once"
   ],
   "license": "MIT"
 }

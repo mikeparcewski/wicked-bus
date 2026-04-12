@@ -1,6 +1,6 @@
 # User's Guide
 
-A practical guide for humans integrating with wicked-bus. Covers how to name events, structure payloads, and set up your integration.
+A practical guide for integrating with wicked-bus. Covers how to name events, structure payloads, and connect your tools and agents to the bus.
 
 ## How Events Work
 

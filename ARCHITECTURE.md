@@ -2,7 +2,7 @@
 
 ## Overview
 
-wicked-bus is a local-first event bridge. No servers, no network transport, no message queues. Just SQLite.
+wicked-bus is a local-first event bus for AI agents and developer tools. No servers, no network transport, no message queues. Just SQLite.
 
 Events are written to an append-only `events` table and consumed via cursor-based polling. Each subscriber maintains its own cursor position. Events are swept (deleted) after a configurable TTL.
 
