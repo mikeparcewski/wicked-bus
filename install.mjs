@@ -60,19 +60,24 @@ if (pathArg) {
 }
 
 // Copy skills to each target CLI
-const skillDirs = readdirSync(skillsSource).filter((d) => !d.startsWith("."));
+// Repo structure: skills/wicked-bus/{name}/SKILL.md (nested namespace)
+// Installed structure: {cli}/skills/wicked-bus-{name}/SKILL.md (flat, one level deep)
+// CLI skill discovery only scans one level deep under the skills directory.
+const namespace = "wicked-bus";
+const namespaceSrc = join(skillsSource, namespace);
+const subSkills = readdirSync(namespaceSrc).filter((d) => !d.startsWith("."));
 
 for (const target of targets) {
   console.log(`Installing to ${target.name} (${target.dir})...`);
   mkdirSync(target.dir, { recursive: true });
 
-  for (const skill of skillDirs) {
-    const src = join(skillsSource, skill);
-    const dest = join(target.dir, skill);
+  for (const skill of subSkills) {
+    const src = join(namespaceSrc, skill);
+    const dest = join(target.dir, `${namespace}-${skill}`);
     cpSync(src, dest, { recursive: true });
   }
 
-  console.log(`  ${skillDirs.length} skills installed`);
+  console.log(`  ${subSkills.length} skills installed`);
 }
 
 console.log(`\nwicked-bus skills installed! Available skills:`);
