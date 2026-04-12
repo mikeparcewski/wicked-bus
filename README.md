@@ -125,6 +125,8 @@ Auto-detects installed CLIs and copies skills. Available skills:
 | `wicked-bus/subscribe` | Consume events |
 | `wicked-bus/naming` | Event naming conventions |
 | `wicked-bus/query` | Query and debug |
+| `wicked-bus/status` | Bus health and diagnostics |
+| `wicked-bus/update` | Check for and install updates |
 
 ## Why wicked-bus?
 

@@ -81,3 +81,5 @@ console.log(`  wicked-bus/emit      — Publish events`);
 console.log(`  wicked-bus/subscribe — Consume events`);
 console.log(`  wicked-bus/naming    — Event naming conventions`);
 console.log(`  wicked-bus/query     — Query and debug the bus`);
+console.log(`  wicked-bus/status    — Bus health and diagnostics`);
+console.log(`  wicked-bus/update    — Check for and install updates`);
