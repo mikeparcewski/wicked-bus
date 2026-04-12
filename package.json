@@ -1,0 +1,50 @@
+{
+  "name": "wicked-bus",
+  "version": "1.0.0",
+  "description": "A lightweight, local-first SQLite event bridge for the wicked-* ecosystem",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./lib/index.js",
+      "require": "./lib/index.cjs"
+    },
+    "./cli": "./commands/cli.js"
+  },
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.js",
+  "bin": {
+    "wicked-bus": "./commands/cli.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  },
+  "peerDependencies": {
+    "better-sqlite3": ">=9.0.0"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^11.0.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  },
+  "files": [
+    "lib/",
+    "commands/",
+    "scripts/"
+  ],
+  "keywords": [
+    "event-bus",
+    "sqlite",
+    "local-first",
+    "wicked"
+  ],
+  "license": "MIT"
+}

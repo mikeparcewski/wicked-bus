@@ -1,0 +1,5 @@
+{
+  "name": "wicked-bus",
+  "version": "1.0.0",
+  "description": "Local-first event bridge for the wicked-* ecosystem"
+}

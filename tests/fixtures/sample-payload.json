@@ -1,0 +1,6 @@
+{
+  "testId": "abc-123",
+  "result": "passed",
+  "duration": 1500,
+  "tags": ["unit", "fast"]
+}

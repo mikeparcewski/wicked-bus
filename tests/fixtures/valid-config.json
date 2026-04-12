@@ -1,0 +1,8 @@
+{
+  "ttl_hours": 48,
+  "dedup_ttl_hours": 12,
+  "sweep_interval_minutes": 30,
+  "archive_mode": true,
+  "log_level": "debug",
+  "max_payload_bytes": 524288
+}

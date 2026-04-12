@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+*.db
+*.db-wal
+*.db-shm
+.brain.db*
+_meta/
+memory/
+.claude/
