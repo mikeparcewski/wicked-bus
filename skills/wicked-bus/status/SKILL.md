@@ -1,4 +1,5 @@
 ---
+name: wicked-bus:status
 description: |
   Show wicked-bus health, statistics, and diagnostics. Event counts,
   subscriber lag, provider list, database size, and configuration.

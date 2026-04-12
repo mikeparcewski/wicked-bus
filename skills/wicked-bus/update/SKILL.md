@@ -1,4 +1,5 @@
 ---
+name: wicked-bus:update
 description: |
   Check for and install wicked-bus updates. Compares installed version against
   npm registry, updates skills across all detected CLIs.

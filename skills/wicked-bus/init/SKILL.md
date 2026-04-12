@@ -1,4 +1,5 @@
 ---
+name: wicked-bus:init
 description: Initialize wicked-bus or connect to an existing instance. Use when setting up the bus for the first time, checking if it's running, or configuring a project to use it. Auto-triggered when any wicked-bus skill detects no config.
 ---
 

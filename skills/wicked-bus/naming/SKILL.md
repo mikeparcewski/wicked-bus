@@ -1,4 +1,5 @@
 ---
+name: wicked-bus:naming
 description: Guide for naming wicked-bus events — helps choose event_type, domain, and subdomain when emitting events. Use when creating new events, integrating a plugin with the bus, or reviewing event naming for consistency.
 ---
 
