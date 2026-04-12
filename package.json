@@ -13,7 +13,8 @@
   "main": "./lib/index.cjs",
   "module": "./lib/index.js",
   "bin": {
-    "wicked-bus": "./commands/cli.js"
+    "wicked-bus": "./commands/cli.js",
+    "wicked-bus-install": "./install.mjs"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -38,7 +39,9 @@
   "files": [
     "lib/",
     "commands/",
-    "scripts/"
+    "scripts/",
+    "skills/",
+    "install.mjs"
   ],
   "keywords": [
     "event-bus",
