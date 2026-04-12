@@ -48,9 +48,9 @@ Pattern: `wicked.<noun>.<past-tense-verb>`
 
 ## domain Rules
 
-1. Use your npm package name exactly (e.g., `my-plugin`)
+1. A unique identifier for the publishing system — package name, service name, or tool name
 2. Max 64 characters
-3. One domain per plugin — don't subdivide at this level
+3. One domain per system — don't subdivide at this level
 4. This is what subscribers use in `@domain` filters
 
 ## subdomain Rules

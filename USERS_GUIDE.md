@@ -70,15 +70,16 @@ Use these consistently:
 
 ## Choosing Your Domain
 
-Your domain is your package name. That's it.
+Your domain is a unique identifier for the system emitting events. It can be a package name, a service name, a tool name, or any string that uniquely identifies the publisher.
 
-If your npm package is `my-deploy-tool`, your domain is `my-deploy-tool`. If it's `acme-ci`, your domain is `acme-ci`.
+Examples: `my-deploy-tool`, `acme-ci`, `wicked-garden`, `backend-api`, `data-pipeline`
 
 Rules:
-- One domain per plugin
+- One domain per system/tool
 - Max 64 characters
 - Lowercase, hyphens are fine
 - This is what subscribers use in `@domain` filters
+- Pick something stable — subscribers will filter on it
 
 ## Choosing Your Subdomain
 
