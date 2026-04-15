@@ -92,10 +92,43 @@ describe('db', () => {
     db.close();
   });
 
-  it('seeds schema_migrations with version 1', () => {
+  it('seeds schema_migrations through version 2', () => {
     const db = openDb({});
     const row = db.prepare('SELECT MAX(version) as max_version FROM schema_migrations').get();
-    expect(row.max_version).toBe(1);
+    expect(row.max_version).toBe(2);
+    db.close();
+  });
+
+  it('creates dead_letters table with denormalized event fields', () => {
+    const db = openDb({});
+    const cols = db.prepare("PRAGMA table_info(dead_letters)").all();
+    const colNames = cols.map(c => c.name);
+    expect(colNames).toContain('dl_id');
+    expect(colNames).toContain('cursor_id');
+    expect(colNames).toContain('subscription_id');
+    expect(colNames).toContain('event_id');
+    expect(colNames).toContain('event_type');
+    expect(colNames).toContain('domain');
+    expect(colNames).toContain('subdomain');
+    expect(colNames).toContain('payload');
+    expect(colNames).toContain('emitted_at');
+    expect(colNames).toContain('attempts');
+    expect(colNames).toContain('last_error');
+    expect(colNames).toContain('dead_lettered_at');
+    db.close();
+  });
+
+  it('creates delivery_attempts table with composite PK', () => {
+    const db = openDb({});
+    const cols = db.prepare("PRAGMA table_info(delivery_attempts)").all();
+    const colNames = cols.map(c => c.name);
+    expect(colNames).toContain('cursor_id');
+    expect(colNames).toContain('event_id');
+    expect(colNames).toContain('attempts');
+    expect(colNames).toContain('last_attempt_at');
+    expect(colNames).toContain('last_error');
+    const pkCols = cols.filter(c => c.pk > 0).map(c => c.name).sort();
+    expect(pkCols).toEqual(['cursor_id', 'event_id']);
     db.close();
   });
 
@@ -121,7 +154,7 @@ describe('db', () => {
     db1.close();
     const db2 = openDb({});
     const row = db2.prepare('SELECT COUNT(*) as c FROM schema_migrations').get();
-    expect(row.c).toBe(1);
+    expect(row.c).toBe(2);
     db2.close();
   });
 
