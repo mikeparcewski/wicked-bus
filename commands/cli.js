@@ -6,9 +6,11 @@
 
 import { WBError, EXIT_CODES } from '../lib/errors.js';
 
-// Argument parser
+// Argument parser. Returns flags + positional args (anything that isn't --flag
+// or its value). Positional args are needed for subcommands like `dlq list`.
 function parseArgs(argv) {
   const args = {};
+  const positional = [];
   for (let i = 0; i < argv.length; i++) {
     if (argv[i].startsWith('--')) {
       const key = argv[i].slice(2);
@@ -17,8 +19,11 @@ function parseArgs(argv) {
       } else {
         args[key] = argv[++i];
       }
+    } else {
+      positional.push(argv[i]);
     }
   }
+  args._positional = positional;
   return args;
 }
 
@@ -28,6 +33,7 @@ function printUsage() {
     commands: [
       'init', 'emit', 'subscribe', 'status', 'replay',
       'cleanup', 'register', 'deregister', 'list', 'ack',
+      'dlq',
     ],
     global_flags: ['--db-path <path>', '--json', '--log-level <level>'],
   };
@@ -115,6 +121,11 @@ async function main() {
       case 'ack': {
         const { cmdAck } = await import('./cmd-ack.js');
         await cmdAck(args, globals);
+        break;
+      }
+      case 'dlq': {
+        const { cmdDlq } = await import('./cmd-dlq.js');
+        await cmdDlq(args, globals, args._positional || []);
         break;
       }
       default:
