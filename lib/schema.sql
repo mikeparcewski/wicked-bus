@@ -62,26 +62,34 @@ CREATE INDEX IF NOT EXISTS idx_cursors_active
 -- correct. Denormalized so rows survive the 24h dedup_expires_at sweep of the
 -- originating event. No automatic TTL — operator-managed via dlq subcommands.
 CREATE TABLE IF NOT EXISTS dead_letters (
-    dl_id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    cursor_id         TEXT    NOT NULL
-                        REFERENCES cursors(cursor_id) ON DELETE RESTRICT,
-    subscription_id   TEXT    NOT NULL
-                        REFERENCES subscriptions(subscription_id) ON DELETE RESTRICT,
-    event_id          INTEGER NOT NULL,
-    event_type        TEXT    NOT NULL,
-    domain            TEXT    NOT NULL,
-    subdomain         TEXT    NOT NULL DEFAULT '',
-    payload           TEXT    NOT NULL,
-    emitted_at        INTEGER NOT NULL,
-    attempts          INTEGER NOT NULL,
-    last_error        TEXT,
-    dead_lettered_at  INTEGER NOT NULL
+    dl_id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    cursor_id             TEXT    NOT NULL
+                            REFERENCES cursors(cursor_id) ON DELETE RESTRICT,
+    subscription_id       TEXT    NOT NULL
+                            REFERENCES subscriptions(subscription_id) ON DELETE RESTRICT,
+    event_id              INTEGER NOT NULL,
+    event_type            TEXT    NOT NULL,
+    domain                TEXT    NOT NULL,
+    subdomain             TEXT    NOT NULL DEFAULT '',
+    payload               TEXT    NOT NULL,
+    emitted_at            INTEGER NOT NULL,
+    attempts              INTEGER NOT NULL,
+    last_error            TEXT,
+    dead_lettered_at      INTEGER NOT NULL,
+    -- Replay queue marker set by replayDeadLetter(). The managed subscribe
+    -- loop drains rows with non-null replay_requested_at before polling new
+    -- events. Cleared on replay success (row deleted) or failure (row
+    -- updated with new attempts/last_error so the operator can re-inspect).
+    replay_requested_at   INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_dead_letters_cursor_id        ON dead_letters(cursor_id);
 CREATE INDEX IF NOT EXISTS idx_dead_letters_subscription_id  ON dead_letters(subscription_id);
 CREATE INDEX IF NOT EXISTS idx_dead_letters_dead_lettered_at ON dead_letters(dead_lettered_at);
 CREATE INDEX IF NOT EXISTS idx_dead_letters_event_id         ON dead_letters(event_id);
+CREATE INDEX IF NOT EXISTS idx_dead_letters_replay_pending
+    ON dead_letters(cursor_id, replay_requested_at)
+    WHERE replay_requested_at IS NOT NULL;
 
 -- delivery_attempts: per-cursor retry state for events currently in flight.
 -- Created on first handler failure, deleted on successful ack or DLQ transition.
