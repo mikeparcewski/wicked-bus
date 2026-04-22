@@ -70,7 +70,9 @@ const flagValue = (name) => {
   if (!f) return null;
   let val;
   if (f.includes("=")) {
-    val = f.split("=")[1];
+    // slice from the first '=' forward — split("=")[1] would truncate at
+    // the second '=' (e.g. --path=/volumes/build=artifacts).
+    val = f.slice(f.indexOf("=") + 1);
   } else {
     const idx = args.indexOf(f);
     const next = args[idx + 1];
@@ -86,7 +88,7 @@ const pathArg = flagValue("path");
 
 let targets;
 
-if (pathArg && typeof pathArg === "string") {
+if (pathArg && typeof pathArg === "string" && pathArg !== "") {
   const customPath = resolve(pathArg.replace(/^~/, home));
   const dirName = basename(customPath).replace(/^\./, "");
   targets = [{
@@ -95,7 +97,7 @@ if (pathArg && typeof pathArg === "string") {
     platform: dirName,
   }];
   console.log(`Custom path: ${customPath}\n`);
-} else if (pathArg === true) {
+} else if (pathArg === true || pathArg === "") {
   console.error("Error: --path requires a value (e.g. --path=~/.claude or --path ~/.claude)");
   process.exit(1);
 } else {
