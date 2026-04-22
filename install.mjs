@@ -31,7 +31,9 @@ function buildClaudeTarget(rootDir, source, { trusted = false } = {}) {
 function resolveClaudeCandidates() {
   const envDir = process.env.CLAUDE_CONFIG_DIR;
   if (envDir && typeof envDir === "string" && envDir.trim()) {
-    const root = resolve(envDir.trim().replace(/^~/, home));
+    // Function replacement avoids `$&` etc. being interpreted as regex
+    // back-references if $HOME contains those literals.
+    const root = resolve(envDir.trim().replace(/^~/, () => home));
     return [buildClaudeTarget(root, "env:CLAUDE_CONFIG_DIR", { trusted: true })];
   }
   return [
@@ -86,10 +88,17 @@ const flagValue = (name) => {
 const cliArg  = flagValue("cli");
 const pathArg = flagValue("path");
 
+// Validate --cli upfront so a mistyped --cli / --cli= fails fast
+// instead of silently falling through to "all detected".
+if (cliArg === true || cliArg === "") {
+  console.error("Error: --cli requires a value (e.g. --cli=claude or --cli claude)");
+  process.exit(1);
+}
+
 let targets;
 
 if (pathArg && typeof pathArg === "string" && pathArg !== "") {
-  const customPath = resolve(pathArg.replace(/^~/, home));
+  const customPath = resolve(pathArg.replace(/^~/, () => home));
   const dirName = basename(customPath).replace(/^\./, "");
   targets = [{
     name: dirName,
@@ -119,7 +128,7 @@ if (pathArg && typeof pathArg === "string" && pathArg !== "") {
     : d.name;
   console.log(`Detected CLIs: ${detected.map(label).join(", ")}\n`);
 
-  const cliFilter = (cliArg && typeof cliArg === "string") ? cliArg.split(",") : null;
+  const cliFilter = (typeof cliArg === "string" && cliArg !== "") ? cliArg.split(",") : null;
   targets = cliFilter ? detected.filter((d) => cliFilter.includes(d.name)) : detected;
 }
 
