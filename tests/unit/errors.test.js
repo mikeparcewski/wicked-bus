@@ -42,10 +42,23 @@ describe('WBError', () => {
 });
 
 describe('ERROR_CODES', () => {
-  it('maps all 6 error codes', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(6);
+  it('preserves the v1 contract for WB-001 through WB-006', () => {
     expect(ERROR_CODES['WB-001']).toBe('INVALID_EVENT_SCHEMA');
+    expect(ERROR_CODES['WB-002']).toBe('DUPLICATE_EVENT');
+    expect(ERROR_CODES['WB-003']).toBe('CURSOR_BEHIND_TTL_WINDOW');
+    expect(ERROR_CODES['WB-004']).toBe('DISK_FULL');
+    expect(ERROR_CODES['WB-005']).toBe('SCHEMA_VERSION_UNSUPPORTED');
     expect(ERROR_CODES['WB-006']).toBe('CURSOR_NOT_FOUND');
+  });
+
+  it('adds v2 codes WB-007 through WB-013 (DESIGN-v2.md §10.2)', () => {
+    expect(ERROR_CODES['WB-007']).toBe('LARGE_SCAN_REJECTED');
+    expect(ERROR_CODES['WB-008']).toBe('PAYLOAD_TOO_LARGE');
+    expect(ERROR_CODES['WB-009']).toBe('SCHEMA_MISMATCH');
+    expect(ERROR_CODES['WB-010']).toBe('CAS_GC_INCOMPLETE_BUCKET_SET');
+    expect(ERROR_CODES['WB-011']).toBe('UI_TOKEN_PERMISSION_MISMATCH');
+    expect(ERROR_CODES['WB-012']).toBe('LIVE_TIER_BLOAT_WARNING');
+    expect(ERROR_CODES['WB-013']).toBe('SPILL_BUCKET_UNAVAILABLE');
   });
 });
 

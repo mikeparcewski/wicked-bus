@@ -7,3 +7,4 @@ coverage/
 _meta/
 memory/
 .claude/
+.aider*

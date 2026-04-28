@@ -33,7 +33,7 @@ function printUsage() {
     commands: [
       'init', 'emit', 'subscribe', 'status', 'replay',
       'cleanup', 'register', 'deregister', 'list', 'ack',
-      'dlq',
+      'dlq', 'daemon', 'ui',
     ],
     global_flags: ['--db-path <path>', '--json', '--log-level <level>'],
   };
@@ -126,6 +126,16 @@ async function main() {
       case 'dlq': {
         const { cmdDlq } = await import('./cmd-dlq.js');
         await cmdDlq(args, globals, args._positional || []);
+        break;
+      }
+      case 'daemon': {
+        const { cmdDaemon } = await import('./cmd-daemon.js');
+        await cmdDaemon(args, globals, args._positional || []);
+        break;
+      }
+      case 'ui': {
+        const { cmdUi } = await import('./cmd-ui.js');
+        await cmdUi(args, globals);
         break;
       }
       default:

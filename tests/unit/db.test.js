@@ -24,7 +24,8 @@ describe('db', () => {
     } else {
       delete process.env.WICKED_BUS_DATA_DIR;
     }
-    try { rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+    try { rmSync(tmpDir, { recursive: true, force: true }); }
+    catch (_e) { /* tmp dir already gone — ignore */ }
   });
 
   it('creates DB with WAL journal mode', () => {
@@ -92,10 +93,10 @@ describe('db', () => {
     db.close();
   });
 
-  it('seeds schema_migrations through version 2', () => {
+  it('seeds schema_migrations through the current target version (v2 npm = 3)', () => {
     const db = openDb({});
     const row = db.prepare('SELECT MAX(version) as max_version FROM schema_migrations').get();
-    expect(row.max_version).toBe(2);
+    expect(row.max_version).toBe(3);
     db.close();
   });
 
@@ -154,7 +155,7 @@ describe('db', () => {
     db1.close();
     const db2 = openDb({});
     const row = db2.prepare('SELECT COUNT(*) as c FROM schema_migrations').get();
-    expect(row.c).toBe(2);
+    expect(row.c).toBe(3);
     db2.close();
   });
 
@@ -167,5 +168,24 @@ describe('db', () => {
       `).run();
     }).toThrow();
     db.close();
+  });
+
+  it('throws WB-005 (does NOT process.exit) when the DB schema_migrations is ahead of the binary', () => {
+    // Open once to seed the schema, then bump schema_migrations beyond what
+    // the binary supports.
+    const db1 = openDb({});
+    db1.prepare(
+      `INSERT INTO schema_migrations(version, applied_at, description) VALUES (?, ?, ?)`
+    ).run(99, Date.now(), 'future schema');
+    db1.close();
+
+    let caught = null;
+    try { openDb({}); }
+    catch (e) { caught = e; }
+
+    expect(caught).not.toBeNull();
+    expect(caught.error).toBe('WB-005');
+    expect(caught.code).toBe('SCHEMA_VERSION_UNSUPPORTED');
+    expect(caught.context.declared).toBe(99);
   });
 });
