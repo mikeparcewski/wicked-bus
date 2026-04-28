@@ -84,11 +84,13 @@ jobs:
   sync-version-to-main:
     needs: [publish-npm, publish-github-packages]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -98,14 +100,21 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
-      - name: Commit and push if changed
-        run: |
-          if git diff --quiet package.json package-lock.json; then
-            echo "package.json already at ${GITHUB_REF_NAME} — nothing to commit"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          git commit -m "chore(release): sync package.json to ${GITHUB_REF_NAME} [skip ci]"
-          git push origin main
+      - name: Open PR if changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: bot/sync-version-${{ github.ref_name }}
+          delete-branch: true
+          commit-message: "chore(release): sync package.json to ${{ github.ref_name }} [skip ci]"
+          title: "chore(release): sync package.json to ${{ github.ref_name }}"
+          body: |
+            Automated bump after publishing ${{ github.ref_name }}. The release
+            workflow sets the version transiently in CI for `npm publish`; this
+            PR catches `main` up so the source tree matches the released tag.
+
+            No-op if `main` is already at this version.
+          labels: |
+            release
+            automated
