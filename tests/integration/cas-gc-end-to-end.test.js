@@ -13,7 +13,7 @@
  * by hand, we go through the real emit + sweep path.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import fs from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -63,7 +63,7 @@ describe('§14.3 I7 — CAS GC end-to-end with offline-bucket abort', () => {
 
   // -------------------------------------------------------------------------
 
-  skipOnWindows('full lifecycle — emit→cas-auto→sweep→GC keeps SHAs reachable from warm; abort on unreadable bucket', () => {
+  skipOnWindows('full lifecycle — emit→cas-auto→sweep→GC keeps SHAs reachable; bucket-unreadable abort exercised on POSIX only', () => {
     const config = { ...loadConfig(), daemon_notify: false, log_level: 'silent' };
     const big = JSON.stringify({ data: 'y'.repeat(200) });
 
@@ -123,7 +123,7 @@ describe('§14.3 I7 — CAS GC end-to-end with offline-bucket abort', () => {
       const partial = casGc({
         dataDir: tmpDir,
         liveDb: db,
-        allow_missing_buckets: [bucketPath.split('/').pop()],
+        allow_missing_buckets: [basename(bucketPath)],
       });
       expect(partial.live_shas).toBe(0);                // live drained, bucket excluded
       expect(partial.deleted).toBe(1);                  // sha now an orphan

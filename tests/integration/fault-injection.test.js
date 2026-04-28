@@ -142,7 +142,12 @@ describe('§14.1 fault-injection matrix — concurrency & boundary', () => {
   // T9 — Bucket unavailable during spill → WB-013, cursor unchanged
   // -------------------------------------------------------------------------
 
-  it('T9: locked bucket during spill → WB-013, no cursor advance', () => {
+  // T9 relies on `fs.chmodSync(file, 0o000)` to make a bucket unreadable.
+  // Windows does not honor POSIX file-mode bits — the chmod is a no-op there.
+  // The library-level guarantee (WB-013 on a locked/missing bucket) is
+  // already covered by `lib/query.js readBucket` and exercised on POSIX.
+  const it_t9 = (typeof process !== 'undefined' && process.platform === 'win32') ? it.skip : it;
+  it_t9('T9: locked bucket during spill → WB-013, no cursor advance', () => {
     buildBucket(archDir, 'bus-2026-01.db', 1, 50);
 
     // Make the bucket unreadable by stripping perms (POSIX). On Windows we
@@ -172,7 +177,11 @@ describe('§14.1 fault-injection matrix — concurrency & boundary', () => {
   // T10 — ATTACH ceiling: many warm buckets in a single spill
   // -------------------------------------------------------------------------
 
-  it('T10: spill spanning > ATTACH ceiling buckets — first ceiling is processed cleanly', () => {
+  // T10 builds 130 sealed SQLite buckets in a row. Windows file-creation
+  // latency (NTFS + AV scan) is several × macOS/Linux, so the default 15s
+  // vitest timeout isn't enough. Give it 60s — the library work is identical
+  // across platforms; only the test setup is slower.
+  it('T10: spill spanning > ATTACH ceiling buckets — first ceiling is processed cleanly', { timeout: 60_000 }, () => {
     // Build 130 buckets, each with 1 event (event_ids 1..130). The resolver's
     // ATTACH cap is 123; it should attach the first 123, return up to
     // batchSize results in order, and never silently drop events under the

@@ -5,9 +5,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
 import fs from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, platform } from 'node:os';
 import { randomUUID, createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
+
+const isWindows = platform() === 'win32';
+const skipOnWindows = isWindows ? it.skip : it;
 import { openDb } from '../../lib/db.js';
 import { writeDefaultConfig } from '../../lib/config.js';
 import {
@@ -264,7 +267,7 @@ describe('cas — gc', () => {
   // Offline-bucket safety (WB-010, round-1 council fix)
   // -------------------------------------------------------------------------
 
-  it('aborts with WB-010 when a warm bucket is unreadable', () => {
+  skipOnWindows('aborts with WB-010 when a warm bucket is unreadable', () => {
     const sha = put(tmpDir, 'hash-here');
     insertLiveWithCas(sha);
 
@@ -284,7 +287,7 @@ describe('cas — gc', () => {
     }
   });
 
-  it('allow_missing_buckets lets the operator acknowledge intentional absences', () => {
+  skipOnWindows('allow_missing_buckets lets the operator acknowledge intentional absences', () => {
     const sha = put(tmpDir, 'still-here');
     insertLiveWithCas(sha);
 

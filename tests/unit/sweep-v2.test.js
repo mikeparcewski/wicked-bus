@@ -4,7 +4,7 @@
  * T12 (auto-split coordination), plus core correctness.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -187,7 +187,7 @@ describe('v2 tiered sweep (lib/sweep-v2.js)', () => {
     expect(r2.events_moved).toBe(5);
     expect(r2.buckets_touched).toEqual(['bus-2026-04a.db']);
 
-    const buckets = listBuckets(archDir).map(p => p.split('/').pop());
+    const buckets = listBuckets(archDir).map(p => basename(p));
     expect(buckets).toContain('bus-2026-04.db');
     expect(buckets).toContain('bus-2026-04a.db');
 
