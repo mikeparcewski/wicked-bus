@@ -8,3 +8,4 @@ _meta/
 memory/
 .claude/
 .aider*
+.DS_Store
