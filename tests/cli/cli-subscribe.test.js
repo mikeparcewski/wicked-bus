@@ -76,6 +76,39 @@ describe('wicked-bus subscribe', () => {
     }, 1500);
   }, 5000);
 
+  it('--help prints usage and exits 0 without touching the DB', () => {
+    const result = run(['subscribe', '--help'], { dataDir: tmpDir });
+    expect(result.exitCode).toBe(0);
+    const usage = JSON.parse(result.stdout);
+    expect(usage.usage).toContain('subscribe');
+    expect(usage.required).toHaveProperty('--plugin <name>');
+    // The genuinely useful flags must be discoverable.
+    expect(usage.options).toHaveProperty('--no-ack');
+    expect(usage.options).toHaveProperty('--filter <pattern>');
+  });
+
+  it('-h prints usage and exits 0', () => {
+    const result = run(['subscribe', '-h'], { dataDir: tmpDir });
+    expect(result.exitCode).toBe(0);
+    const usage = JSON.parse(result.stdout);
+    expect(usage.usage).toContain('subscribe');
+  });
+
+  it('missing --plugin fails fast with WB-001 and a non-zero exit', () => {
+    const result = run(['subscribe'], { dataDir: tmpDir });
+    expect(result.exitCode).not.toBe(0);
+    const err = JSON.parse(result.stderr);
+    expect(err.error).toBe('WB-001');
+    expect(err.message).toMatch(/--plugin/);
+  });
+
+  it('value-less --plugin fails fast with WB-001 and a non-zero exit', () => {
+    const result = run(['subscribe', '--plugin'], { dataDir: tmpDir });
+    expect(result.exitCode).not.toBe(0);
+    const err = JSON.parse(result.stderr);
+    expect(err.error).toBe('WB-001');
+  });
+
   it('--no-ack mode does not advance cursor', (done) => {
     // Register a subscriber first
     const regResult = run([
