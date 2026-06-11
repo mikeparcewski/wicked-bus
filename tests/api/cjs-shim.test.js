@@ -36,4 +36,15 @@ describe('CJS shim (lib/index.cjs)', () => {
     expect(mod.runSweep).toBeDefined();
     expect(mod.WBError).toBeDefined();
   });
+
+  it('forwards the v2 surface through the same module namespace (#10)', async () => {
+    // The CJS shim proxies onto this same namespace object, so verifying the
+    // namespace covers what a `require()` consumer sees once loaded.
+    const mod = await import('../../lib/index.js');
+    expect(typeof mod.subscribePushOrPoll).toBe('function');
+    expect(typeof mod.withContext).toBe('function');
+    expect(typeof mod.runSweepV2).toBe('function');
+    expect(typeof mod.cas).toBe('object');
+    expect(typeof mod.cas.put).toBe('function');
+  });
 });

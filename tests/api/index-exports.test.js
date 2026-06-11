@@ -54,3 +54,37 @@ describe('ESM exports', () => {
     expect(typeof wickedBus.matchesFilter).toBe('function');
   });
 });
+
+describe('ESM exports — v2 surface (#10)', () => {
+  it.each([
+    'subscribePushOrPoll',
+    'probeDaemon',
+    'connectAsSubscriber',
+    'notifyEmit',
+    'withContext',
+    'currentContext',
+    'getSchema',
+    'applyOnEmit',
+    'runSweepV2',
+    'pollResolve',
+  ])('re-exports %s as a function', (name) => {
+    expect(typeof wickedBus[name]).toBe('function');
+  });
+
+  it('exposes the CAS helpers under a `cas` namespace', () => {
+    expect(typeof wickedBus.cas).toBe('object');
+    for (const fn of ['casDir', 'put', 'get', 'exists', 'stats', 'gc']) {
+      expect(typeof wickedBus.cas[fn]).toBe('function');
+    }
+  });
+
+  it('keeps the 1.x surface unchanged (additive only)', () => {
+    for (const fn of [
+      'emit', 'poll', 'ack', 'register', 'deregister', 'openDb', 'loadConfig',
+      'resolveDataDir', 'ensureDataDir', 'startSweep', 'runSweep', 'subscribe',
+      'WBError', 'matchesFilter',
+    ]) {
+      expect(wickedBus[fn]).toBeDefined();
+    }
+  });
+});
