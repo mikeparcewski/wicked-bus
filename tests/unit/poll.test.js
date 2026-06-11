@@ -148,6 +148,41 @@ describe('poll', () => {
     const events = poll(db, reg.cursor_id);
     expect(events).toHaveLength(0);
   });
+
+  it('afterEventId overrides the cursor floor without mutating it', () => {
+    for (let i = 0; i < 4; i++) emitEvent();
+    const reg = registerSub('wicked.test.run.*', 'oldest'); // cursor at 0
+
+    // With afterEventId=2, only events 3 and 4 come back...
+    const page = poll(db, reg.cursor_id, { afterEventId: 2 });
+    expect(page.map(e => e.event_id)).toEqual([3, 4]);
+
+    // ...and the persisted cursor is untouched (still 0), so a plain poll
+    // still returns the full backlog.
+    const cursor = db.prepare('SELECT last_event_id FROM cursors WHERE cursor_id = ?')
+      .get(reg.cursor_id);
+    expect(cursor.last_event_id).toBe(0);
+    expect(poll(db, reg.cursor_id)).toHaveLength(4);
+  });
+
+  it('afterEventId pages a backlog larger than one batch (drain --no-ack model)', () => {
+    for (let i = 0; i < 5; i++) emitEvent();
+    const reg = registerSub('wicked.test.run.*', 'oldest');
+
+    // Page through with batchSize 2, advancing an in-memory floor, never acking.
+    let floor = 0;
+    const seen = [];
+    for (;;) {
+      const batch = poll(db, reg.cursor_id, { batchSize: 2, afterEventId: floor });
+      if (batch.length === 0) break;
+      for (const e of batch) { seen.push(e.event_id); floor = e.event_id; }
+    }
+    expect(seen).toEqual([1, 2, 3, 4, 5]);
+    // Cursor never moved.
+    const cursor = db.prepare('SELECT last_event_id FROM cursors WHERE cursor_id = ?')
+      .get(reg.cursor_id);
+    expect(cursor.last_event_id).toBe(0);
+  });
 });
 
 describe('ack', () => {
