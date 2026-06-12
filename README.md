@@ -146,7 +146,7 @@ Agent ecosystems have a communication problem. Tools that should work together â
 
 ## Requirements
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - `better-sqlite3` >= 9.0.0 (peer dependency)
 - macOS, Linux, or Windows
 

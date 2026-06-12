@@ -36,6 +36,56 @@ describe('matchesFilter', () => {
     });
   });
 
+  describe('multi-level wildcard (**)', () => {
+    it('wicked.** matches every event under the wicked prefix (the intuitive filter)', () => {
+      // The naming convention is wicked.<noun>.<verb> (3+ segments), so the
+      // "subscribe to everything under wicked" filter must be wicked.**
+      expect(matchesFilter('wicked.fact.extracted', 'x', 'wicked.**')).toBe(true);
+      expect(matchesFilter('wicked.test.run.completed', 'x', 'wicked.**')).toBe(true);
+      expect(matchesFilter('wicked.a.b.c.d', 'x', 'wicked.**')).toBe(true);
+    });
+
+    it('prefix.** matches one segment deep', () => {
+      expect(matchesFilter('wicked.test.run', 'x', 'wicked.test.**')).toBe(true);
+    });
+
+    it('prefix.** matches two segments deep', () => {
+      expect(matchesFilter('wicked.test.run.completed', 'x', 'wicked.test.**')).toBe(true);
+    });
+
+    it('prefix.** matches three-plus segments deep', () => {
+      expect(matchesFilter('wicked.a.b.c.d.e', 'x', 'wicked.a.**')).toBe(true);
+    });
+
+    it('prefix.** does not match a different prefix', () => {
+      expect(matchesFilter('wicked.other.run', 'x', 'wicked.test.**')).toBe(false);
+    });
+
+    it('prefix.** requires at least one trailing segment (does not match bare prefix)', () => {
+      expect(matchesFilter('wicked.test', 'x', 'wicked.test.**')).toBe(false);
+    });
+
+    it('** combines with @domain scoping', () => {
+      expect(matchesFilter('wicked.fact.extracted', 'wicked-brain', 'wicked.**@wicked-brain')).toBe(true);
+      expect(matchesFilter('wicked.fact.extracted', 'other', 'wicked.**@wicked-brain')).toBe(false);
+    });
+  });
+
+  describe('single-level wildcard is unchanged by ** support', () => {
+    it('wicked.* still does NOT match three-segment types', () => {
+      // Regression guard: adding ** must not loosen single-* semantics.
+      expect(matchesFilter('wicked.fact.extracted', 'x', 'wicked.*')).toBe(false);
+    });
+
+    it('wicked.* still matches a two-segment type', () => {
+      expect(matchesFilter('wicked.fact', 'x', 'wicked.*')).toBe(true);
+    });
+
+    it('exact match still wins and is unaffected', () => {
+      expect(matchesFilter('wicked.fact.extracted', 'x', 'wicked.fact.extracted')).toBe(true);
+    });
+  });
+
   describe('@domain suffix', () => {
     it('matches with correct domain', () => {
       expect(matchesFilter('wicked.test.run.completed', 'wicked-testing', 'wicked.test.run.*@wicked-testing')).toBe(true);

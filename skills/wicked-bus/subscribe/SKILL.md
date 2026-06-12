@@ -138,16 +138,22 @@ async function checkBusEvents() {
 | Pattern | Matches |
 |---------|---------|
 | `wicked.run.completed` | Exact match only |
-| `wicked.run.*` | All `wicked.run.` events (single-level wildcard) |
+| `wicked.run.*` | `wicked.run.<one-segment>` — single-level wildcard |
+| `wicked.run.**` | `wicked.run.<one-or-more-segments>` — multi-level wildcard |
+| `wicked.**` | Everything under `wicked.` (every `wicked.<noun>.<verb>` event) |
 | `*@wicked-brain` | All events from the `wicked-brain` domain |
-| `wicked.memory.*@wicked-brain` | Memory events from brain only |
+| `wicked.memory.*@wicked-brain` | Memory events (single-level) from brain only |
 
 ### Filter rules
 
 1. `*` matches exactly one segment (single-level wildcard)
-2. `@domain` suffix scopes by the `domain` column
-3. Wildcards and `@domain` can combine: `wicked.run.*@my-plugin`
-4. `*` alone (catch-all) is valid but noisy
+2. `**` matches one or more segments (multi-level wildcard). Event types are
+   `wicked.<noun>.<verb>` (3+ segments), so to subscribe to "everything under
+   `wicked`" use `wicked.**`, not `wicked.*` (which would match nothing).
+3. A trailing `**` requires at least one segment after the prefix.
+4. `@domain` suffix scopes by the `domain` column
+5. Wildcards and `@domain` can combine: `wicked.run.*@my-plugin` or `wicked.run.**@my-plugin`
+6. `*` alone (catch-all) is valid but noisy
 
 ## Delivery Semantics
 
