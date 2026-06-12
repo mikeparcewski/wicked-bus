@@ -184,11 +184,17 @@ Metadata is nullable and not indexed. Don't put anything in metadata that subscr
 | Pattern | What It Matches |
 |---------|----------------|
 | `wicked.task.completed` | Exactly that event type |
-| `wicked.task.*` | All task events (`created`, `completed`, `failed`, etc.) |
+| `wicked.task.*` | One segment deep: `wicked.task.created`, `wicked.task.completed` — NOT `wicked.task.step.completed` |
+| `wicked.task.**` | One **or more** segments deep: `wicked.task.created` AND `wicked.task.step.completed` |
+| `wicked.**` | Everything under `wicked.` — every `wicked.<noun>.<verb>` event |
 | `*@my-plugin` | Everything from `my-plugin` |
-| `wicked.task.*@my-plugin` | Task events from `my-plugin` only |
+| `wicked.task.*@my-plugin` | Task events (one segment deep) from `my-plugin` only |
 
-The `*` wildcard matches exactly one segment. There's no multi-level wildcard (`**`) in v1.
+`*` matches exactly one segment (single-level). `**` matches one or more
+segments (multi-level). Because every event type is `wicked.<noun>.<verb>`
+(3+ segments), use `wicked.**` — not `wicked.*` — to "subscribe to everything
+under `wicked`". A trailing `**` requires at least one segment after the
+prefix; it does not match the bare prefix on its own.
 
 ### Delivery Guarantees
 
@@ -272,7 +278,7 @@ def emit_to_bus(event_type, domain, payload, timeout_ms=100):
 ### "My subscriber isn't getting events"
 
 1. Is the bus initialized? `wicked-bus status`
-2. Does your filter match? `wicked.task.*` matches `wicked.task.completed` but not `wicked.task.step.completed`
+2. Does your filter match? `wicked.task.*` matches `wicked.task.completed` but not `wicked.task.step.completed` (use `wicked.task.**` for the latter, or `wicked.**` for everything)
 3. Is the `@domain` suffix correct? It must match the `domain` column exactly
 4. Are the events expired? Default visibility is 72 hours
 5. Is your subscription deregistered? `wicked-bus list --include-deregistered`

@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { openDb } from '../../lib/db.js';
 import { writeDefaultConfig, loadConfig } from '../../lib/config.js';
 import { emit } from '../../lib/emit.js';
-import { poll, ack } from '../../lib/poll.js';
+import { poll, ack, matchesFilter } from '../../lib/poll.js';
 import { register } from '../../lib/register.js';
 import { WBError } from '../../lib/errors.js';
 
@@ -182,6 +182,59 @@ describe('poll', () => {
     const cursor = db.prepare('SELECT last_event_id FROM cursors WHERE cursor_id = ?')
       .get(reg.cursor_id);
     expect(cursor.last_event_id).toBe(0);
+  });
+
+  // ── Wildcard filtering at the SQL layer (buildFilterSql parity) ───────────
+  // These exercise the real poll() query path, not just matchesFilter(), to
+  // ensure the SQL WHERE clause mirrors the in-memory matcher.
+  describe('wildcard filtering (SQL path)', () => {
+    function typesFrom(events) {
+      return events.map(e => e.event_type).sort();
+    }
+
+    it('single-level wicked.X.* returns only one-segment-deep types', () => {
+      emitEvent('wicked.test.run');           // matches
+      emitEvent('wicked.test.verdict');        // matches
+      emitEvent('wicked.test.run.completed');  // too deep — excluded
+      const reg = registerSub('wicked.test.*', 'oldest');
+      const events = poll(db, reg.cursor_id);
+      expect(typesFrom(events)).toEqual(['wicked.test.run', 'wicked.test.verdict']);
+    });
+
+    it('multi-level wicked.X.** returns one-or-more-segments-deep types', () => {
+      emitEvent('wicked.test.run');            // matches (one deep)
+      emitEvent('wicked.test.run.completed');  // matches (two deep)
+      emitEvent('wicked.other.thing');         // different prefix — excluded
+      const reg = registerSub('wicked.test.**', 'oldest');
+      const events = poll(db, reg.cursor_id);
+      expect(typesFrom(events)).toEqual(['wicked.test.run', 'wicked.test.run.completed']);
+    });
+
+    it('wicked.** returns every event under the wicked prefix (the intuitive filter)', () => {
+      emitEvent('wicked.fact.extracted');
+      emitEvent('wicked.test.run.completed');
+      emitEvent('wicked.a.b.c.d');
+      const reg = registerSub('wicked.**', 'oldest');
+      const events = poll(db, reg.cursor_id);
+      expect(events).toHaveLength(3);
+    });
+
+    it('SQL path matches the in-memory matcher for the same inputs', () => {
+      const types = [
+        'wicked.test.run',
+        'wicked.test.run.completed',
+        'wicked.test.verdict.created',
+        'wicked.other.thing',
+      ];
+      types.forEach(t => emitEvent(t));
+
+      for (const filter of ['wicked.test.*', 'wicked.test.**', 'wicked.**']) {
+        const reg = registerSub(filter, 'oldest');
+        const sqlMatched = typesFrom(poll(db, reg.cursor_id));
+        const memMatched = types.filter(t => matchesFilter(t, 'wicked-testing', filter)).sort();
+        expect(sqlMatched).toEqual(memMatched);
+      }
+    });
   });
 });
 
