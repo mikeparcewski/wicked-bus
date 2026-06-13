@@ -4,7 +4,21 @@
  * wicked-bus CLI entry point.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { WBError, EXIT_CODES } from '../lib/errors.js';
+
+// Resolve the package version from package.json (single source of truth).
+function readVersion() {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8'));
+    return pkg.version || '0.0.0';
+  } catch (_e) {
+    return '0.0.0';
+  }
+}
 
 // Argument parser. Returns flags + positional args (anything that isn't --flag
 // or its value). Positional args are needed for subcommands like `dlq list`.
@@ -56,6 +70,15 @@ function handleError(err) {
 async function main() {
   const argv = process.argv.slice(2);
   const command = argv[0];
+
+  // `--version` / `-v` prints the package version and exits 0. Handled before
+  // command dispatch so health probes (e.g. wicked-loom's doctor) get a clean
+  // version string instead of the usage/help JSON.
+  if (command === '--version' || command === '-v') {
+    process.stdout.write(readVersion() + '\n');
+    process.exit(0);
+  }
+
   const flagArgv = argv.slice(1);
   const args = parseArgs(flagArgv);
 

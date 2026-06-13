@@ -1,9 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { join } from 'node:path';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { run } from './helpers.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PKG_VERSION = JSON.parse(
+  readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf8'),
+).version;
 
 describe('CLI: global flags', () => {
   let tmpDir;
@@ -24,6 +30,21 @@ describe('CLI: global flags', () => {
       'init', '--db-path', customDb,
     ], { dataDir: tmpDir });
     expect(result.exitCode).toBe(0);
+  });
+
+  it('--version prints the package version and exits 0', () => {
+    const result = run(['--version'], { dataDir: tmpDir });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe(PKG_VERSION);
+    // Must NOT be the usage/help JSON (the bug wicked-loom doctor tripped on).
+    expect(result.stdout).not.toContain('usage');
+    expect(result.stdout).not.toContain('commands');
+  });
+
+  it('-v is an alias for --version', () => {
+    const result = run(['-v'], { dataDir: tmpDir });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe(PKG_VERSION);
   });
 
   it('--payload @file reads from file', () => {
