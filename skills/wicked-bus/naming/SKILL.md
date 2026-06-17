@@ -156,7 +156,7 @@ is identity, not semantics. Columns enable index-based filtering.
 > **This is an illustrative pattern, not a mandate.** wicked-bus does not ship,
 > register, or enforce a lifecycle catalog — skills teach conventions, they do
 > **not** hardcode other plugins' event catalogs. Treat the names below as an
-> example a multi-stage pipeline tool **MAY** adopt to stay consistent with the
+> example that a multi-stage pipeline tool **MAY** adopt to stay consistent with the
 > `wicked.<noun>.<past-tense-verb>` convention. Pick the nouns/verbs that fit
 > your domain; nothing here is reserved.
 
@@ -164,7 +164,7 @@ Many ecosystem tools run a **staged, gated pipeline** — an engine that moves w
 through ordered stages, with governance gates between them (for example a
 migration pipeline with stages like *discover → knowledge-base → spec → plan →
 transform → validate → deliver/cutover*, each guarded by an approval gate). Such a
-tool needs a consistent way to signal "a stage was entered/finished" and "a gate
+tool needs a consistent way to signal "a stage was entered/completed" and "a gate
 cleared/blocked" so other tools can observe progress.
 
 Here is one internally-consistent way to name those events under the existing
@@ -178,7 +178,7 @@ convention.
 | `wicked.stage.completed` | A stage finishes successfully | mirror of `entered` |
 | `wicked.gate.cleared` | A governance gate passes | the "go" signal |
 | `wicked.gate.blocked` | A gate fails / withholds approval | the "stop" signal |
-| `wicked.cutover.completed` | Final delivery/cutover succeeds | terminal milestone |
+| `wicked.pipeline.completed` | The whole pipeline reaches its terminal milestone (e.g. delivery/cutover) | terminal milestone — stage carried in `subdomain` |
 
 All five satisfy the rules: `wicked.` prefix, three segments, past-tense verb,
 no domain or subdomain baked in. They are **semantic** — any pipeline engine
@@ -237,11 +237,11 @@ get expressive filters for free:
 # Every gate outcome from any engine, any stage
 wicked-bus subscribe --filter 'wicked.gate.*'
 
+# Every stage transition from any engine, any stage
+wicked-bus subscribe --filter 'wicked.stage.*'
+
 # Everything a specific engine emits across its whole lifecycle
 wicked-bus subscribe --filter '*@engine'
-
-# All lifecycle signals from anyone (stages + gates + cutover)
-wicked-bus subscribe --filter 'wicked.**'
 ```
 
 ### The bus is transport, not the system of record
