@@ -150,3 +150,105 @@ into event_type forces subscribers to enumerate every producer.
 **Why subdomain is a column (not in event_type):**
 `wicked.phase.started` is semantic. Whether it's `crew.phase` or `deploy.phase`
 is identity, not semantics. Columns enable index-based filtering.
+
+## Worked example: lifecycle & gate events
+
+> **This is an illustrative pattern, not a mandate.** wicked-bus does not ship,
+> register, or enforce a lifecycle catalog — skills teach conventions, they do
+> **not** hardcode other plugins' event catalogs. Treat the names below as an
+> example a multi-stage pipeline tool **MAY** adopt to stay consistent with the
+> `wicked.<noun>.<past-tense-verb>` convention. Pick the nouns/verbs that fit
+> your domain; nothing here is reserved.
+
+Many ecosystem tools run a **staged, gated pipeline** — an engine that moves work
+through ordered stages, with governance gates between them (for example a
+migration pipeline with stages like *discover → knowledge-base → spec → plan →
+transform → validate → deliver/cutover*, each guarded by an approval gate). Such a
+tool needs a consistent way to signal "a stage was entered/finished" and "a gate
+cleared/blocked" so other tools can observe progress.
+
+Here is one internally-consistent way to name those events under the existing
+convention.
+
+### Suggested event types
+
+| Event type | Emitted when | Notes |
+|------------|--------------|-------|
+| `wicked.stage.entered` | A pipeline stage begins | noun=`stage`, verb=`entered` |
+| `wicked.stage.completed` | A stage finishes successfully | mirror of `entered` |
+| `wicked.gate.cleared` | A governance gate passes | the "go" signal |
+| `wicked.gate.blocked` | A gate fails / withholds approval | the "stop" signal |
+| `wicked.cutover.completed` | Final delivery/cutover succeeds | terminal milestone |
+
+All five satisfy the rules: `wicked.` prefix, three segments, past-tense verb,
+no domain or subdomain baked in. They are **semantic** — any pipeline engine
+emitting "a stage was entered" shares `wicked.stage.entered`, regardless of which
+tool it is.
+
+### Suggested domain & subdomain
+
+- **`domain`** = the engine/orchestrator's identity (its package or tool name),
+  e.g. `domain = "engine"` (or `migration-factory`, `anti-legacy`, …). One domain
+  per engine — don't subdivide here.
+- **`subdomain`** = `lifecycle.<stage>` — the functional area plus the specific
+  stage the event concerns, e.g. `lifecycle.transform`, `lifecycle.validate`,
+  `lifecycle.cutover`. *Which* stage is identity, not semantics, so it belongs in
+  the column, never in the event_type.
+
+### How a multi-stage pipeline names its transitions
+
+A 7-stage pipeline does **not** invent a new event_type per stage. It reuses the
+five semantic types above and distinguishes the stage via `subdomain`:
+
+```javascript
+import { emit } from 'wicked-bus';
+
+// Entering the "transform" stage
+emit(db, config, {
+  event_type: 'wicked.stage.entered',
+  domain: 'engine',
+  subdomain: 'lifecycle.transform',
+  payload: { stage: 'transform', stage_number: 5, ref: '<authoritative-state-id>' },
+});
+
+// The gate guarding the transform→validate transition clears
+emit(db, config, {
+  event_type: 'wicked.gate.cleared',
+  domain: 'engine',
+  subdomain: 'lifecycle.transform',
+  payload: { gate: 'transform', approver: 'architect', spec_version: '3.2.0' },
+});
+
+// A later gate withholds approval
+emit(db, config, {
+  event_type: 'wicked.gate.blocked',
+  domain: 'engine',
+  subdomain: 'lifecycle.validate',
+  payload: { gate: 'validate', reason: 'acceptance criteria not green' },
+});
+```
+
+### Why this shape filters well
+
+Because the stage lives in `subdomain` and the engine in `domain`, subscribers
+get expressive filters for free:
+
+```bash
+# Every gate outcome from any engine, any stage
+wicked-bus subscribe --filter 'wicked.gate.*'
+
+# Everything a specific engine emits across its whole lifecycle
+wicked-bus subscribe --filter '*@engine'
+
+# All lifecycle signals from anyone (stages + gates + cutover)
+wicked-bus subscribe --filter 'wicked.**'
+```
+
+### The bus is transport, not the system of record
+
+These events **announce** transitions; they do not **store** lifecycle state. The
+bus is fire-and-forget transport and TTL-sweeps payloads — authoritative lifecycle
+state (which stage you're in, who signed which gate) lives in the pipeline tool's
+own durable store (its spec headers, DB, or audit log), not on the bus. Put a
+reference (an id) in the payload and resolve details from the system of record;
+never treat a polled event as the source of truth for current state.
