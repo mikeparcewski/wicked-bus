@@ -99,6 +99,83 @@ Rules:
 - Defaults to empty string if not relevant
 - Can be as deep as needed: `area.entity.detail`
 
+## Worked Example: Lifecycle & Gate Events
+
+> **Illustrative pattern, not a mandate.** wicked-bus does not ship, register, or
+> enforce a lifecycle catalog. The names below are an example a staged-pipeline
+> tool *may* adopt to stay consistent with the `wicked.<noun>.<past-tense-verb>`
+> convention. Pick nouns/verbs that fit your domain — nothing here is reserved.
+
+A tool that runs a **staged, gated pipeline** (an engine moving work through
+ordered stages, with approval gates between them) needs a consistent way to
+signal "a stage was entered/completed" and "a gate cleared/blocked".
+
+### Suggested event types
+
+| Event type | Emitted when |
+|------------|--------------|
+| `wicked.stage.entered` | A pipeline stage begins |
+| `wicked.stage.completed` | A stage finishes successfully |
+| `wicked.gate.cleared` | A governance gate passes (the "go" signal) |
+| `wicked.gate.blocked` | A gate fails / withholds approval (the "stop" signal) |
+
+All satisfy the rules: `wicked.` prefix, three segments, past-tense verb, no
+domain or subdomain baked in. They are **semantic** — any pipeline engine
+emitting "a stage was entered" shares `wicked.stage.entered`.
+
+### Suggested domain & subdomain
+
+- **`domain`** = the engine's identity, e.g. `engine`. One domain per engine.
+- **`subdomain`** = `lifecycle.<stage>` — e.g. `lifecycle.transform`,
+  `lifecycle.validate`. *Which* stage is identity, so it belongs in the column,
+  never in the event_type.
+
+A multi-stage pipeline does **not** invent a new event_type per stage. It reuses
+the semantic types above and distinguishes the stage via `subdomain`:
+
+```javascript
+import { emit } from 'wicked-bus';
+
+// Entering the "transform" stage
+emit(db, config, {
+  event_type: 'wicked.stage.entered',
+  domain: 'engine',
+  subdomain: 'lifecycle.transform',
+  payload: { stage: 'transform', ref: '<authoritative-state-id>' },
+});
+
+// The gate guarding transform→validate clears
+emit(db, config, {
+  event_type: 'wicked.gate.cleared',
+  domain: 'engine',
+  subdomain: 'lifecycle.transform',
+  payload: { gate: 'transform', approver: 'architect' },
+});
+
+// A later gate withholds approval
+emit(db, config, {
+  event_type: 'wicked.gate.blocked',
+  domain: 'engine',
+  subdomain: 'lifecycle.validate',
+  payload: { gate: 'validate', reason: 'acceptance criteria not green' },
+});
+```
+
+Because the stage lives in `subdomain` and the engine in `domain`, subscribers
+get expressive filters for free:
+
+```bash
+wicked-bus subscribe --filter 'wicked.gate.*'     # every gate outcome, any stage
+wicked-bus subscribe --filter 'wicked.stage.*'    # every stage transition
+wicked-bus subscribe --filter '*@engine'          # everything that engine emits
+```
+
+These events **announce** transitions; they do not **store** lifecycle state. The
+bus is fire-and-forget transport and TTL-sweeps payloads — authoritative state
+lives in the pipeline tool's own durable store. Put a reference (an id) in the
+payload and resolve details from the system of record; never treat a polled event
+as the source of truth for current state.
+
 ## Payload Conventions
 
 The payload is a JSON object. There are no enforced schema rules beyond "must be valid JSON object," but following these conventions makes events useful to consumers.
