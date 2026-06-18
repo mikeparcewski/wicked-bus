@@ -179,9 +179,13 @@ describe('§14.1 fault-injection matrix — concurrency & boundary', () => {
 
   // T10 builds 130 sealed SQLite buckets in a row. Windows file-creation
   // latency (NTFS + AV scan) is several × macOS/Linux, so the default 15s
-  // vitest timeout isn't enough. Give it 60s — the library work is identical
-  // across platforms; only the test setup is slower.
-  it('T10: spill spanning > ATTACH ceiling buckets — first ceiling is processed cleanly', { timeout: 60_000 }, () => {
+  // vitest timeout isn't enough. The slowest `windows-latest` CI runners have
+  // been observed completing this test (correctly) in ~74s, which intermittently
+  // tripped the previous 60s bound. Give it 120s — 2× the observed worst case —
+  // so the runner's setup latency has headroom. The library work is identical
+  // across platforms; only the test setup is slower, so this stays a targeted
+  // per-test timeout rather than loosening the 15s file/suite default.
+  it('T10: spill spanning > ATTACH ceiling buckets — first ceiling is processed cleanly', { timeout: 120_000 }, () => {
     // Build 130 buckets, each with 1 event (event_ids 1..130). The resolver's
     // ATTACH cap is 123; it should attach the first 123, return up to
     // batchSize results in order, and never silently drop events under the
