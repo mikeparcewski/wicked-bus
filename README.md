@@ -13,6 +13,20 @@ SQLite-backed, single-host, poll-based delivery with at-least-once semantics. No
 
 Built for agent ecosystems where multiple tools need to communicate without coupling to each other — AI coding assistants, test runners, knowledge systems, deployment tools, or anything that benefits from local event-driven architecture.
 
+> **Status:** v2.2.3, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
+> (also GitHub Packages as `@mikeparcewski/wicked-bus`). Pure JavaScript/ESM — no build step.
+> The v2 line is a layered coordination fabric where every layer is optional, with the v1
+> `emit/poll/ack/register` API preserved unchanged.
+
+**The differentiator:** a zero-infrastructure event substrate — at-least-once, cursor-poll delivery
+entirely on local SQLite, with no network transport and no running server.
+
+wicked-bus is the **event substrate** of the [wicked-* foundation](https://we.wickedagile.com): a
+local-first stack for AI coding agents anchored by [wicked-estate](https://github.com/mikeparcewski/wicked-estate)
+(the code graph), with [wicked-core](https://github.com/mikeparcewski/wicked-core) (the runtime),
+[wicked-brain](https://github.com/mikeparcewski/wicked-brain) (memory), and
+[wicked-crew](https://github.com/mikeparcewski/wicked-crew) (the workflow governor).
+
 ## Quick Start
 
 ### Install
