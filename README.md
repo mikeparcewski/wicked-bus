@@ -7,11 +7,41 @@
   ╚══╝╚══╝ ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝     ╚═════╝  ╚═════╝ ╚══════╝
 ```
 
-A lightweight, local-first event bus for AI agents and developer tools.
+**The durable coordination fabric for AI agents and developer tools.**
 
-SQLite-backed, single-host, poll-based delivery with at-least-once semantics. No servers, no network transport, no infrastructure. Events stay on your machine.
+At-least-once delivery with restart-durable retry (`delivery_attempts`), a dead-letter queue with
+operator replay, emit-side idempotency, and disk-full recovery — no event is lost on a crash, a
+restart, a full disk, or a missed push. Monthly tiered storage auto-splits at 10 GB and reads across
+tiers transparently, so the hot working set stays small as history grows to millions of rows. Large
+payloads go to a content-addressed store; causality/lineage tracing, a schema registry, and a
+WB-0xx error taxonomy round it out.
 
-Built for agent ecosystems where multiple tools need to communicate without coupling to each other — AI coding assistants, test runners, knowledge systems, deployment tools, or anything that benefits from local event-driven architecture.
+Zero infrastructure: the durability substrate is **embedded SQLite (ACID/WAL)** — there's no server
+to run, no network, and events stay on your machine. SQLite is the reason there's zero infra, not
+the headline.
+
+Built for agent ecosystems where multiple tools need to communicate without coupling to each other —
+AI coding assistants, test runners, knowledge systems, deployment tools, or anything that benefits
+from durable, event-driven coordination.
+
+> **Status:** v2.2.3, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
+> (also GitHub Packages as `@mikeparcewski/wicked-bus`). Pure JavaScript/ESM — no build step, no
+> Rust. The v2 line is a layered coordination fabric where every layer is optional, with the v1
+> `emit/poll/ack/register` API preserved unchanged.
+
+> **Single-host today.** Push is over a local Unix socket (a push daemon layered on durable poll, so
+> a missed push never loses an event); there is **no remote/TCP event delivery**. Scale is vertical
+> and temporal — the hot set stays small as history tiers out — **not** horizontal or clustered.
+
+**The differentiator:** restart-durable, at-least-once delivery with a dead-letter queue and operator
+replay — a coordination fabric with real delivery guarantees that still needs zero infrastructure to
+run.
+
+wicked-bus is the **event substrate** of the [wicked-* foundation](https://we.wickedagile.com): a
+local-first stack for AI coding agents anchored by [wicked-estate](https://github.com/mikeparcewski/wicked-estate)
+(the code graph), with [wicked-core](https://github.com/mikeparcewski/wicked-core) (the runtime),
+[wicked-brain](https://github.com/mikeparcewski/wicked-brain) (memory), and
+[wicked-crew](https://github.com/mikeparcewski/wicked-crew) (the agentic execution harness).
 
 > **Status:** v2.2.3, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
 > (also GitHub Packages as `@mikeparcewski/wicked-bus`). Pure JavaScript/ESM — no build step.
@@ -118,7 +148,7 @@ db.close();
 | `replay` | Reset a cursor to a specific position |
 | `cleanup` | Run TTL sweep (delete expired events) |
 
-All commands output structured JSON. Errors go to stderr with error codes (WB-001 through WB-006).
+All commands output structured JSON. Errors go to stderr with codes from the WB-0xx taxonomy (WB-001 through WB-013).
 
 ## AI CLI Skills
 
@@ -144,13 +174,14 @@ Auto-detects installed CLIs and copies skills. Available skills:
 
 ## Why wicked-bus?
 
-Agent ecosystems have a communication problem. Tools that should work together — test runners, code reviewers, knowledge systems, deployment pipelines — end up tightly coupled or completely siloed. wicked-bus solves this with a dead-simple local event bridge.
+Agent ecosystems have a communication problem. Tools that should work together — test runners, code reviewers, knowledge systems, deployment pipelines — end up tightly coupled or completely siloed. wicked-bus solves this with a durable local event fabric that guarantees delivery without asking you to run anything.
 
-- **Local-first**: everything lives in a single SQLite file. No servers to run, no ports to manage, no infrastructure.
-- **At-least-once delivery**: cursors persist across restarts. Unacked events are re-delivered. No lost events.
+- **At-least-once delivery**: cursors persist across restarts and retry is restart-durable (`delivery_attempts`). Unacked events are re-delivered; events that exhaust retries land in a dead-letter queue you can inspect and replay. No lost events.
+- **Durable, idempotent, crash-safe**: emit-side idempotency and disk-full recovery mean a crash, a restart, or a full disk never corrupts or duplicates the log.
+- **Stays small as it grows**: monthly tiered storage auto-splits at 10 GB and reads across tiers transparently, so the hot working set stays fast at millions of rows. Two-timer TTL expires events automatically — no manual cleanup, no unbounded growth.
+- **Zero infrastructure**: the substrate is a single embedded SQLite file (ACID/WAL). No servers to run, no ports to manage, no network — events stay on your machine.
 - **Fire-and-forget**: producers are non-blocking. The bus never slows the caller. If it's not installed, callers degrade gracefully.
 - **Agent-native**: designed for AI coding assistants and the tools around them. Ships with skills for Claude, Gemini, Copilot, Codex, and Cursor.
-- **Two-timer TTL**: events auto-expire. No manual cleanup, no unbounded growth.
 
 ## Documentation
 
