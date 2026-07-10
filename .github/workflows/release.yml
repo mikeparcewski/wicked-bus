@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   release:
-    uses: mikeparcewski/wicked-ci/.github/workflows/node-release.yml@0382b46d00d772c09911f9d00021e0172eb9abe4 # v1.1.0
+    uses: mikeparcewski/wicked-ci/.github/workflows/node-release.yml@d8c9b0a14fb91c2d13f5da0468eeeff983c27e5a # v1.1.2
     with:
       package_name: wicked-bus
       enable_sync_pr: true
