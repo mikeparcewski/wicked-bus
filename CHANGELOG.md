@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.3.0 — 2026-07-12
+
+### Added
+- **Subscribe self-recovers from a TTL-swept cursor (WB-003).** A long-lived
+  `subscribe` (drain or streaming) whose cursor falls behind the sweep window now
+  re-anchors to the oldest surviving event and resumes delivery instead of dying
+  silently. `--on-stale <recover|fail>` (default `recover`) governs it; a one-line
+  WB-003 diagnostic goes to stderr. New `reanchorCursor()` export.
+- **`deregister --plugin <name>` (+ `--role`).** Reset every active subscription
+  and cursor for a plugin without first looking up a subscription id. New
+  `deregisterByPlugin()` export.
+
+### Changed
+- **Event-type grammar docs aligned to 4 segments** (`wicked.<domain>.<noun>.<verb>`,
+  per `reqs/SPEC.md`). The naming/subscribe/query skills, dev guide, DATA-DOMAIN,
+  INTEGRATION-GUIDE, and USERS_GUIDE now match the v1 catalog.
+
+### Fixed
+- Input validation on `reanchorCursor` / `deregisterByPlugin` / `--on-stale` /
+  `--role`; drain-mode DB handle released via `try/finally`.
+
 ## v2.0.0 — 2026-04-28
 
 **The local-first nervous system for AI agent meshes.**
