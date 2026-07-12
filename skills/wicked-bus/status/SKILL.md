@@ -1,5 +1,5 @@
 ---
-name: wicked-bus:status
+name: status
 description: |
   Show wicked-bus health, statistics, and diagnostics. Event counts,
   subscriber lag, provider list, database size, and configuration.
@@ -8,7 +8,7 @@ description: |
   "show bus stats", or when diagnosing delivery issues.
 ---
 
-# wicked-bus:status
+# wicked-bus status
 
 Show the current state of the wicked-bus.
 

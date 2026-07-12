@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // wicked-bus installer — detects CLIs and installs skills
 
-import { existsSync, mkdirSync, cpSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, cpSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve, basename } from "node:path";
 import { homedir } from "node:os";
 import { argv } from "node:process";
@@ -133,12 +133,42 @@ if (pathArg && typeof pathArg === "string" && pathArg !== "") {
 }
 
 // Copy skills to each target CLI
-// Repo structure: skills/wicked-bus/{name}/SKILL.md (nested namespace)
-// Installed structure: {cli}/skills/wicked-bus-{name}/SKILL.md (flat, one level deep)
+// Repo structure: skills/wicked-bus/{op}/SKILL.md (nested namespace)
+// Installed structure: {cli}/skills/wicked-bus-{op}/SKILL.md (flat, one level deep)
 // CLI skill discovery only scans one level deep under the skills directory.
 const namespace = "wicked-bus";
 const namespaceSrc = join(skillsSource, namespace);
 const subSkills = readdirSync(namespaceSrc).filter((d) => !d.startsWith("."));
+
+// Source SKILL.md frontmatter carries a BARE `name:` (e.g. `emit`). The
+// installer owns namespacing, deriving the per-CLI skill id from that bare
+// name. Every CLI we support installs skills as directory-based entries where
+// the skill id must equal the installed directory basename — so the id must be
+// COLON-FREE (a ':' would either be rewritten to '-' by Antigravity/Codex/etc.,
+// reintroducing a name/dir mismatch, or is simply invalid as a directory name).
+// Hence `wicked-bus-<op>` for all targets. Claude Code resolves these as
+// personal skills by that same directory name; if wicked-bus were ever shipped
+// as a Claude *plugin* (with a plugin.json), the plugin:skill colon form would
+// be derived from the identical bare name — the bare name is the single source
+// of truth either way.
+function namespacedSkillName(bareName /*, platform */) {
+  return `${namespace}-${bareName}`;
+}
+
+// Rewrite the copied SKILL.md `name:` frontmatter from the bare source name to
+// the namespaced id so it matches the installed directory basename. Without
+// this, discovery sees `name: emit` inside `wicked-bus-emit/` — a mismatch that
+// collides across products and can prevent the skill from loading.
+function stampSkillName(destSkillDir, installedName) {
+  const skillMd = join(destSkillDir, "SKILL.md");
+  if (!existsSync(skillMd)) return;
+  const original = readFileSync(skillMd, "utf8");
+  // Only touch the frontmatter `name:` line (first match, block scalars excluded
+  // — bare names are always inline). Anchored to line start within the leading
+  // frontmatter block.
+  const rewritten = original.replace(/^name:[ \t]*\S.*$/m, `name: ${installedName}`);
+  if (rewritten !== original) writeFileSync(skillMd, rewritten);
+}
 
 for (const target of targets) {
   console.log(`Installing to ${target.name} (${target.dir})...`);
@@ -146,8 +176,10 @@ for (const target of targets) {
 
   for (const skill of subSkills) {
     const src = join(namespaceSrc, skill);
-    const dest = join(target.dir, `${namespace}-${skill}`);
+    const installedName = namespacedSkillName(skill, target.platform);
+    const dest = join(target.dir, installedName);
     cpSync(src, dest, { recursive: true });
+    stampSkillName(dest, installedName);
   }
 
   console.log(`  ${subSkills.length} skills installed`);
