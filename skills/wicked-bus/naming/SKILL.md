@@ -151,21 +151,23 @@ into event_type forces subscribers to enumerate every producer.
 `wicked.phase.started` is semantic. Whether it's `crew.phase` or `deploy.phase`
 is identity, not semantics. Columns enable index-based filtering.
 
-## Worked example: lifecycle & gate events
+## Worked example: lifecycle events
 
 > **This is an illustrative pattern, not a mandate.** wicked-bus does not ship,
 > register, or enforce a lifecycle catalog — skills teach conventions, they do
 > **not** hardcode other plugins' event catalogs. Treat the names below as an
 > example that a multi-stage pipeline tool **MAY** adopt to stay consistent with the
 > `wicked.<noun>.<past-tense-verb>` convention. Pick the nouns/verbs that fit
-> your domain; nothing here is reserved.
+> your domain; nothing here is reserved. (The *real* gate events wicked products
+> emit are catalogued separately in
+> [Real gates in the ecosystem](#real-gates-in-the-ecosystem-two-namespaces-not-one)
+> below — those are not hypothetical.)
 
-Many ecosystem tools run a **staged, gated pipeline** — an engine that moves work
-through ordered stages, with governance gates between them (for example a
-migration pipeline with stages like *discover → knowledge-base → spec → plan →
-transform → validate → deliver/cutover*, each guarded by an approval gate). Such a
-tool needs a consistent way to signal "a stage was entered/completed" and "a gate
-cleared/blocked" so other tools can observe progress.
+Many ecosystem tools run a **staged pipeline** — an engine that moves work
+through ordered stages (for example a migration pipeline with stages like
+*discover → knowledge-base → spec → plan → transform → validate →
+deliver/cutover*). Such a tool needs a consistent way to signal "a stage was
+entered/completed" so other tools can observe progress.
 
 Here is one internally-consistent way to name those events under the existing
 convention.
@@ -176,11 +178,9 @@ convention.
 |------------|--------------|-------|
 | `wicked.stage.entered` | A pipeline stage begins | noun=`stage`, verb=`entered` |
 | `wicked.stage.completed` | A stage finishes successfully | mirror of `entered` |
-| `wicked.gate.cleared` | A governance gate passes | the "go" signal |
-| `wicked.gate.blocked` | A gate fails / withholds approval | the "stop" signal |
 | `wicked.pipeline.completed` | The whole pipeline reaches its terminal milestone (e.g. delivery/cutover) | terminal milestone — stage carried in `subdomain` |
 
-All five satisfy the rules: `wicked.` prefix, three segments, past-tense verb,
+All three satisfy the rules: `wicked.` prefix, three segments, past-tense verb,
 no domain or subdomain baked in. They are **semantic** — any pipeline engine
 emitting "a stage was entered" shares `wicked.stage.entered`, regardless of which
 tool it is.
@@ -198,7 +198,7 @@ tool it is.
 ### How a multi-stage pipeline names its transitions
 
 A 7-stage pipeline does **not** invent a new event_type per stage. It reuses the
-five semantic types above and distinguishes the stage via `subdomain`:
+three semantic types above and distinguishes the stage via `subdomain`:
 
 ```javascript
 import { emit } from 'wicked-bus';
@@ -211,20 +211,12 @@ emit(db, config, {
   payload: { stage: 'transform', stage_number: 5, ref: '<authoritative-state-id>' },
 });
 
-// The gate guarding the transform→validate transition clears
+// The "transform" stage finishes; the engine advances to "validate"
 emit(db, config, {
-  event_type: 'wicked.gate.cleared',
+  event_type: 'wicked.stage.completed',
   domain: 'engine',
   subdomain: 'lifecycle.transform',
-  payload: { gate: 'transform', approver: 'architect', spec_version: '3.2.0' },
-});
-
-// A later gate withholds approval
-emit(db, config, {
-  event_type: 'wicked.gate.blocked',
-  domain: 'engine',
-  subdomain: 'lifecycle.validate',
-  payload: { gate: 'validate', reason: 'acceptance criteria not green' },
+  payload: { stage: 'transform', stage_number: 5, ref: '<authoritative-state-id>' },
 });
 ```
 
@@ -234,9 +226,6 @@ Because the stage lives in `subdomain` and the engine in `domain`, subscribers
 get expressive filters for free:
 
 ```bash
-# Every gate outcome from any engine, any stage
-wicked-bus subscribe --filter 'wicked.gate.*'
-
 # Every stage transition from any engine, any stage
 wicked-bus subscribe --filter 'wicked.stage.*'
 
@@ -252,3 +241,23 @@ state (which stage you're in, who signed which gate) lives in the pipeline tool'
 own durable store (its spec headers, DB, or audit log), not on the bus. Put a
 reference (an id) in the payload and resolve details from the system of record;
 never treat a polled event as the source of truth for current state.
+
+## Real gates in the ecosystem (two namespaces, not one)
+
+The `wicked.gate.*` names in the illustrative pipeline above are a *hypothetical*
+engine — not a real catalog. In the actual wicked ecosystem there is **no single
+gate catalog**: two products run two different gates, in two **separate namespaces
+disambiguated by producer `domain`**. This is a naming lesson worth internalizing —
+know which gate you mean before you filter (and never emit these unless you are the
+producer that owns them):
+
+| Gate | Producer `domain` | Event types emitted |
+|------|-------------------|---------------------|
+| **QE acceptance gate** | `wicked-testing` | `wicked.qe.gate.passed`, `wicked.qe.gate.failed`, `wicked.qe.gate.conditional`, `wicked.qe.deploy.completed` |
+| **Crew phase gate** | `wicked-garden` | `wicked.gate.decided` (a *command* — it directs the next step, not a pass/fail outcome), `wicked.gate.blocked` |
+
+Same word ("gate"), two distinct real events, told apart by `domain` and by
+namespace prefix (`wicked.qe.gate.*` versus `wicked.gate.*`). `wicked.gate.*`
+matches only wicked-garden's crew gate; it does **not** reach wicked-testing's QE
+gate. There is **no** `wicked.gate.cleared` and **no** unified gate stream — do not
+emit or subscribe to them. See the wicked-bus User's Guide for full payload fields.

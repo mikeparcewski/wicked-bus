@@ -401,6 +401,7 @@ are not used in v1 and should not be constructed dynamically.
 | `wicked.test.run.completed` | Test run finishes | `runId`, `projectId`, `scenarioId`, `status`, `duration_ms`, `evidencePath` |
 | `wicked.test.run.failed` | Test run errors out | `runId`, `projectId`, `error`, `duration_ms` |
 | `wicked.test.verdict.created` | Verdict recorded | `verdictId`, `runId`, `verdict`, `reviewer` |
+| `wicked.test.strategy.generated` | Test strategy generated | `projectId`, `scenarioCount` |
 | `wicked.test.scenario.created` | New scenario created | `scenarioId`, `projectId`, `name`, `format_version` |
 | `wicked.test.project.created` | New project created | `projectId`, `name` |
 

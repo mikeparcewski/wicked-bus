@@ -99,16 +99,18 @@ Rules:
 - Defaults to empty string if not relevant
 - Can be as deep as needed: `area.entity.detail`
 
-## Worked Example: Lifecycle & Gate Events
+## Worked Example: Lifecycle Events
 
 > **Illustrative pattern, not a mandate.** wicked-bus does not ship, register, or
 > enforce a lifecycle catalog. The names below are an example a staged-pipeline
 > tool *may* adopt to stay consistent with the `wicked.<noun>.<past-tense-verb>`
 > convention. Pick nouns/verbs that fit your domain — nothing here is reserved.
+> (For the *real* gate events other wicked products emit, see
+> [Gate Events](#gate-events-two-distinct-gates-in-the-ecosystem) below — those
+> are a catalog, not an illustration.)
 
-A tool that runs a **staged, gated pipeline** (an engine moving work through
-ordered stages, with approval gates between them) needs a consistent way to
-signal "a stage was entered/completed" and "a gate cleared/blocked".
+A tool that runs a **staged pipeline** (an engine moving work through ordered
+stages) needs a consistent way to signal "a stage was entered/completed".
 
 ### Suggested event types
 
@@ -116,10 +118,8 @@ signal "a stage was entered/completed" and "a gate cleared/blocked".
 |------------|--------------|
 | `wicked.stage.entered` | A pipeline stage begins |
 | `wicked.stage.completed` | A stage finishes successfully |
-| `wicked.gate.cleared` | A governance gate passes (the "go" signal) |
-| `wicked.gate.blocked` | A gate fails / withholds approval (the "stop" signal) |
 
-All satisfy the rules: `wicked.` prefix, three segments, past-tense verb, no
+Both satisfy the rules: `wicked.` prefix, three segments, past-tense verb, no
 domain or subdomain baked in. They are **semantic** — any pipeline engine
 emitting "a stage was entered" shares `wicked.stage.entered`.
 
@@ -144,20 +144,12 @@ emit(db, config, {
   payload: { stage: 'transform', ref: '<authoritative-state-id>' },
 });
 
-// The gate guarding transform→validate clears
+// The "transform" stage finishes
 emit(db, config, {
-  event_type: 'wicked.gate.cleared',
+  event_type: 'wicked.stage.completed',
   domain: 'engine',
   subdomain: 'lifecycle.transform',
-  payload: { gate: 'transform', approver: 'architect' },
-});
-
-// A later gate withholds approval
-emit(db, config, {
-  event_type: 'wicked.gate.blocked',
-  domain: 'engine',
-  subdomain: 'lifecycle.validate',
-  payload: { gate: 'validate', reason: 'acceptance criteria not green' },
+  payload: { stage: 'transform', ref: '<authoritative-state-id>' },
 });
 ```
 
@@ -165,7 +157,6 @@ Because the stage lives in `subdomain` and the engine in `domain`, subscribers
 get expressive filters for free:
 
 ```bash
-wicked-bus subscribe --filter 'wicked.gate.*'     # every gate outcome, any stage
 wicked-bus subscribe --filter 'wicked.stage.*'    # every stage transition
 wicked-bus subscribe --filter '*@engine'          # everything that engine emits
 ```
@@ -175,6 +166,59 @@ bus is fire-and-forget transport and TTL-sweeps payloads — authoritative state
 lives in the pipeline tool's own durable store. Put a reference (an id) in the
 payload and resolve details from the system of record; never treat a polled event
 as the source of truth for current state.
+
+## Gate Events: Two Distinct Gates in the Ecosystem
+
+Governance "gates" are where the wicked ecosystem signals go/stop. **There is no
+single unified `wicked.gate.*` catalog.** Two different products run two different
+gates, and they live in **separate event namespaces disambiguated by producer
+`domain`**. Subscribe to the one you actually care about — do not assume a single
+gate stream, and do not emit these names yourself unless you are one of these two
+producers.
+
+### 1. QE acceptance gate — produced by `wicked-testing`
+
+The acceptance pipeline in **wicked-testing** decides whether captured evidence
+clears the quality bar. Producer `domain = wicked-testing`.
+
+| Event type | Emitted when |
+|------------|--------------|
+| `wicked.qe.gate.passed` | Acceptance passed — evidence meets the bar |
+| `wicked.qe.gate.failed` | Acceptance failed — evidence does not meet the bar |
+| `wicked.qe.gate.conditional` | Conditional pass — accepted with noted caveats |
+| `wicked.qe.deploy.completed` | Deploy finished after the gate cleared |
+
+```bash
+# Every QE acceptance-gate outcome (this namespace is unique to wicked-testing)
+wicked-bus subscribe --filter 'wicked.qe.gate.*'
+```
+
+### 2. Crew phase gate — produced by `wicked-garden`
+
+The crew workflow in **wicked-garden** gates each phase transition. Producer
+`domain = wicked-garden`.
+
+| Event type | Emitted when |
+|------------|--------------|
+| `wicked.gate.decided` | A phase-gate decision was issued. **This is a command** — it directs the next step rather than reporting a pass/fail outcome; the decision detail lives in the payload. |
+| `wicked.gate.blocked` | A phase gate withheld approval (the "stop" signal) |
+
+```bash
+# Every crew phase-gate signal (this namespace is unique to wicked-garden)
+wicked-bus subscribe --filter 'wicked.gate.*'
+```
+
+### Why they are separate
+
+The two gates answer different questions — *does this evidence clear QE?* versus
+*may this crew phase advance?* — run in different products, and are **not
+interchangeable**. Keeping them in distinct namespaces (`wicked.qe.gate.*` versus
+`wicked.gate.*`) means `wicked.gate.*` matches only wicked-garden's crew gate and
+does **not** sweep in wicked-testing's QE gate. Add the `@domain` suffix
+(`wicked.gate.*@wicked-garden`, `wicked.qe.gate.*@wicked-testing`) when you want
+to be explicit about the producer. These are the events actually emitted today;
+`wicked.gate.cleared` and a unified gate namespace are **not** real — do not
+subscribe to or emit them.
 
 ## Payload Conventions
 
