@@ -1,9 +1,9 @@
 ---
-name: wicked-bus:subscribe
+name: subscribe
 description: Subscribe to wicked-bus events. Use when consuming events from the bus, setting up event listeners, polling for new events, or integrating as a subscriber. Covers registration, polling, acknowledgment, and filter patterns.
 ---
 
-# wicked-bus:subscribe
+# wicked-bus subscribe
 
 Guide for consuming events from the wicked-bus.
 

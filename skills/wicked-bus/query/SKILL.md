@@ -1,9 +1,9 @@
 ---
-name: wicked-bus:query
+name: query
 description: Query and debug the wicked-bus. Use when checking bus health, inspecting events, debugging delivery issues, tracing event flow, or investigating why a subscriber isn't receiving events. Covers status, replay, and direct SQLite queries.
 ---
 
-# wicked-bus:query
+# wicked-bus query
 
 Tools for inspecting, debugging, and querying the wicked-bus.
 

@@ -1,9 +1,9 @@
 ---
-name: wicked-bus:emit
+name: emit
 description: Emit events to the wicked-bus. Use when publishing events from a plugin, logging activity to the bus, or integrating a new system with the event bridge. Covers both programmatic (Node.js) and CLI usage.
 ---
 
-# wicked-bus:emit
+# wicked-bus emit
 
 Guide for publishing events to the wicked-bus.
 
