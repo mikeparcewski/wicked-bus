@@ -218,8 +218,12 @@ export async function cmdSubscribe(args, globals) {
   // Drain mode: short-lived, no background sweep, exits when the queue is
   // drained (optionally after an idle window). Process exit is the wake signal.
   if (drainMode) {
-    await runDrain(db, cursorId, { batchSize, noAck, pollIntervalMs, idleTimeoutMs, onStale });
-    db.close();
+    try {
+      await runDrain(db, cursorId, { batchSize, noAck, pollIntervalMs, idleTimeoutMs, onStale });
+    } finally {
+      // Always release the handle — runDrain can throw (e.g. --on-stale fail on WB-003).
+      db.close();
+    }
     return;
   }
 

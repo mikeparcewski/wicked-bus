@@ -34,7 +34,7 @@ export async function cmdDeregister(args, globals) {
       reason: 'missing --subscription-id / --plugin',
     });
   }
-  if (role && role !== 'subscriber' && role !== 'provider') {
+  if (role !== null && role !== 'subscriber' && role !== 'provider') {
     // Reject a typo'd role up front rather than letting it fall through to a
     // misleading WB-006 ("no active subscription") from the empty filter.
     throw new WBError('WB-001', 'INVALID_EVENT_SCHEMA', {
