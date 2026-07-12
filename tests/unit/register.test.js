@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { openDb } from '../../lib/db.js';
 import { writeDefaultConfig, loadConfig } from '../../lib/config.js';
-import { register, deregister } from '../../lib/register.js';
+import { register, deregister, deregisterByPlugin } from '../../lib/register.js';
 import { emit } from '../../lib/emit.js';
 import { WBError } from '../../lib/errors.js';
 
@@ -205,5 +205,93 @@ describe('deregister', () => {
 
     const count = db.prepare('SELECT COUNT(*) as c FROM events').get().c;
     expect(count).toBe(1);
+  });
+});
+
+describe('deregisterByPlugin', () => {
+  let db, config, tmpDir, originalEnv;
+
+  beforeEach(() => {
+    originalEnv = process.env.WICKED_BUS_DATA_DIR;
+    tmpDir = join(tmpdir(), 'wb-dereg-plugin-test-' + randomUUID());
+    mkdirSync(tmpDir, { recursive: true });
+    process.env.WICKED_BUS_DATA_DIR = tmpDir;
+    writeDefaultConfig(tmpDir);
+    config = loadConfig();
+    db = openDb(config);
+  });
+
+  afterEach(() => {
+    try { db.close(); } catch (_) {}
+    if (originalEnv) process.env.WICKED_BUS_DATA_DIR = originalEnv;
+    else delete process.env.WICKED_BUS_DATA_DIR;
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+  });
+
+  it('soft-deletes every active subscription (and cursor) for a plugin', () => {
+    const a = register(db, {
+      plugin: 'wi-agent', role: 'subscriber', filter: 'wicked.test.*', cursor_init: 'oldest',
+    });
+    const b = register(db, {
+      plugin: 'wi-agent', role: 'subscriber', filter: 'wicked.crew.*', cursor_init: 'oldest',
+    });
+
+    const result = deregisterByPlugin(db, 'wi-agent');
+    expect(result.deregistered).toBe(true);
+    expect(result.count).toBe(2);
+    expect(result.subscription_ids).toEqual(
+      expect.arrayContaining([a.subscription_id, b.subscription_id])
+    );
+
+    for (const reg of [a, b]) {
+      const sub = db.prepare('SELECT deregistered_at FROM subscriptions WHERE subscription_id = ?')
+        .get(reg.subscription_id);
+      expect(sub.deregistered_at).toBeTruthy();
+      const cursor = db.prepare('SELECT deregistered_at FROM cursors WHERE cursor_id = ?')
+        .get(reg.cursor_id);
+      expect(cursor.deregistered_at).toBeTruthy();
+    }
+  });
+
+  it('leaves other plugins untouched', () => {
+    register(db, { plugin: 'wi-agent', role: 'subscriber', filter: 'wicked.test.*', cursor_init: 'oldest' });
+    const keep = register(db, { plugin: 'other', role: 'subscriber', filter: 'wicked.test.*', cursor_init: 'oldest' });
+
+    deregisterByPlugin(db, 'wi-agent');
+
+    const sub = db.prepare('SELECT deregistered_at FROM subscriptions WHERE subscription_id = ?')
+      .get(keep.subscription_id);
+    expect(sub.deregistered_at).toBeNull();
+  });
+
+  it('can restrict to a single role', () => {
+    const sub = register(db, { plugin: 'dual', role: 'subscriber', filter: 'wicked.test.*', cursor_init: 'oldest' });
+    const prov = register(db, { plugin: 'dual', role: 'provider', filter: 'wicked.test.run.completed' });
+
+    const result = deregisterByPlugin(db, 'dual', { role: 'subscriber' });
+    expect(result.count).toBe(1);
+
+    const subRow = db.prepare('SELECT deregistered_at FROM subscriptions WHERE subscription_id = ?')
+      .get(sub.subscription_id);
+    expect(subRow.deregistered_at).toBeTruthy();
+    const provRow = db.prepare('SELECT deregistered_at FROM subscriptions WHERE subscription_id = ?')
+      .get(prov.subscription_id);
+    expect(provRow.deregistered_at).toBeNull();
+  });
+
+  it('throws WB-006 when no active subscription matches the plugin', () => {
+    try {
+      deregisterByPlugin(db, 'ghost');
+      expect.fail('should throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(WBError);
+      expect(err.error).toBe('WB-006');
+    }
+  });
+
+  it('is idempotent — a second call finds nothing active and throws WB-006', () => {
+    register(db, { plugin: 'wi-agent', role: 'subscriber', filter: 'wicked.test.*', cursor_init: 'oldest' });
+    deregisterByPlugin(db, 'wi-agent');
+    expect(() => deregisterByPlugin(db, 'wi-agent')).toThrow(WBError);
   });
 });
