@@ -80,6 +80,15 @@ function wantsHelp(args) {
 function recoverFromStale(db, cursorId, err) {
   const ctx = err.context || {};
   const oldestAvailable = ctx.oldest_available_event_id;
+  // The WB-003 error must carry a valid oldest survivor; without it we cannot
+  // compute a safe floor, so surface an explicit failure instead of writing NaN.
+  if (!Number.isInteger(oldestAvailable)) {
+    throw new WBError('WB-003', 'CURSOR_BEHIND_TTL_WINDOW', {
+      message: `Cannot recover from WB-003: oldest_available_event_id is missing or invalid (${oldestAvailable})`,
+      reason: 'unrecoverable stale cursor',
+      cursor_id: cursorId,
+    });
+  }
   const from = ctx.cursor_last_event_id;
   const newFloor = oldestAvailable - 1;
 
@@ -136,7 +145,15 @@ export async function cmdSubscribe(args, globals) {
   // of silently dying. `skip` is an alias for `recover`; `fail` restores the
   // pre-2.3 fatal behavior. Validated pre-DB so a typo fails fast.
   let onStale = 'recover';
-  if (args['on-stale'] != null && args['on-stale'] !== true) {
+  if (args['on-stale'] === true) {
+    // Flag passed with no value — the arg parser sets it to `true`. Requiring an
+    // explicit value avoids silently defaulting to recover on a misconfiguration.
+    throw new WBError('WB-001', 'INVALID_EVENT_SCHEMA', {
+      message: '--on-stale requires a value (recover|skip|fail)',
+      reason: 'invalid --on-stale',
+    });
+  }
+  if (args['on-stale'] != null) {
     const raw = String(args['on-stale']);
     if (raw === 'recover' || raw === 'skip') {
       onStale = 'recover';

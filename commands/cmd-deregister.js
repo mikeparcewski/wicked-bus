@@ -28,6 +28,14 @@ export async function cmdDeregister(args, globals) {
       reason: 'missing --subscription-id / --plugin',
     });
   }
+  if (role && role !== 'subscriber' && role !== 'provider') {
+    // Reject a typo'd role up front rather than letting it fall through to a
+    // misleading WB-006 ("no active subscription") from the empty filter.
+    throw new WBError('WB-001', 'INVALID_EVENT_SCHEMA', {
+      message: `--role must be one of subscriber|provider, got: ${role}`,
+      reason: 'invalid --role',
+    });
+  }
 
   const config = loadConfig(configOverrides);
   const db = openDb(config);
@@ -35,10 +43,14 @@ export async function cmdDeregister(args, globals) {
   // --subscription-id targets one subscription; --plugin resets every active
   // subscription for a plugin in one command (recovery ergonomics: no `list`
   // to look up an id first). --subscription-id wins if both are supplied.
-  const result = subscriptionId
-    ? deregister(db, subscriptionId)
-    : deregisterByPlugin(db, plugin, role ? { role } : {});
-  db.close();
+  let result;
+  try {
+    result = subscriptionId
+      ? deregister(db, subscriptionId)
+      : deregisterByPlugin(db, plugin, role ? { role } : {});
+  } finally {
+    db.close();
+  }
 
   process.stdout.write(JSON.stringify(result) + '\n');
 }
