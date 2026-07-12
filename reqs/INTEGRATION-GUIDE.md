@@ -154,7 +154,7 @@ documentation for the event catalog.
 wicked-bus register \
   --role provider \
   --domain my-plugin \
-  --events "wicked.task.completed,wicked.task.failed" \
+  --events "wicked.myplugin.task.completed,wicked.myplugin.task.failed" \
   --schema-version 1.0.0
 ```
 
@@ -163,16 +163,20 @@ Save the returned `subscription_id` if you need to deregister later.
 ### Programmatic registration (Node.js)
 
 ```javascript
-import { register } from 'wicked-bus';
+import { register, openDb, loadConfig } from 'wicked-bus';
 
-const result = await register({
+const db = openDb(loadConfig());
+
+// register() is synchronous and takes the db handle as its first argument.
+const result = register(db, {
+  plugin: 'my-plugin',
   role: 'provider',
-  domain: 'my-plugin',
-  events: ['wicked.task.completed', 'wicked.task.failed'],
-  schemaVersion: '1.0.0',
+  filter: 'wicked.myplugin.task.completed,wicked.myplugin.task.failed',
+  schema_version: '1.0.0',
 });
 
 console.log(result.subscription_id); // save for deregistration
+db.close();
 ```
 
 ### Provider manifest sidecar
@@ -424,8 +428,8 @@ async function _load() {
 }
 
 const EVENT_MAP = {
-  'task.completed': 'wicked.task.completed',
-  'task.failed':    'wicked.task.failed',
+  'task.completed': 'wicked.myplugin.task.completed',
+  'task.failed':    'wicked.myplugin.task.failed',
 };
 
 export function emitDomainEvent(action, id, payload) {
@@ -472,8 +476,8 @@ import logging
 logger = logging.getLogger('my-plugin')
 
 EVENT_MAP = {
-    'task_completed': 'wicked.task.completed',
-    'task_failed':    'wicked.task.failed',
+    'task_completed': 'wicked.myplugin.task.completed',
+    'task_failed':    'wicked.myplugin.task.failed',
 }
 
 def emit_domain_event(action: str, entity_id: str, payload: dict) -> None:
@@ -593,7 +597,7 @@ def _emit_knowledge_event(event_type: str, chunk_id: str, tier: str, tags: list[
 
 # Usage when storing a memory chunk:
 _emit_knowledge_event(
-    event_type="wicked.memory.stored",
+    event_type="wicked.brain.memory.stored",
     chunk_id="mem-abc123",
     tier="semantic",
     tags=["crew", "pattern"],
@@ -601,7 +605,7 @@ _emit_knowledge_event(
 
 # Usage when updating the knowledge index (no specific chunk):
 _emit_knowledge_event(
-    event_type="wicked.knowledge.updated",
+    event_type="wicked.brain.knowledge.updated",
     chunk_id="",          # empty — index-level update
     tier="",
     tags=[],

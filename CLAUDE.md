@@ -100,7 +100,7 @@ All state lives in `~/.something-wicked/wicked-bus/bus.db` (SQLite, WAL mode). O
 ### Naming
 - Package: `wicked-bus`
 - CLI: `wicked-bus`
-- Skills: `wicked-bus/{operation}` (e.g., `wicked-bus/init`)
+- Skills (installed identity): `wicked-bus-{operation}` (e.g., `wicked-bus-init`)
 - Skill directories: `skills/wicked-bus/{operation}/`
 - Installer: `wicked-bus-install` (npm bin)
 

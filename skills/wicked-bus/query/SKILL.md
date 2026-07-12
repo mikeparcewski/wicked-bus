@@ -100,7 +100,7 @@ npx wicked-bus list --include-deregistered --json
 
 1. **Check registration**: `npx wicked-bus list --role subscriber`
 2. **Check filter**: does the filter match the event_type?
-   - `wicked.run.*` matches `wicked.run.completed` but NOT `wicked.run.step.completed`
+   - `wicked.test.run.*` matches `wicked.test.run.completed` but NOT `wicked.test.run.step.completed`
    - `@domain` suffix must match the `domain` column exactly
 3. **Check cursor position**: is the cursor ahead of the events?
 4. **Check expiry**: events past `expires_at` (default 72h) are invisible
@@ -140,7 +140,7 @@ by using a deterministic key:
 
 ```javascript
 emit(db, config, {
-  event_type: 'wicked.job.completed',
+  event_type: 'wicked.myplugin.job.completed',
   domain: 'my-plugin',
   payload: { jobId: 'job-42' },
   idempotency_key: `job-42-completed`, // Deterministic

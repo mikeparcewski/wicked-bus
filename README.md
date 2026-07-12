@@ -1,10 +1,10 @@
 ```
- ██╗    ██╗██╗ ██████╗██╗  ██╗███████╗██████╗     ██████╗ ██╗   ██╗███████╗
- ██║    ██║██║██╔════╝██║ ██╔╝██╔════╝██╔══██╗    ██╔══██╗██║   ██║██╔════╝
- ██║ █╗ ██║██║██║     █████╔╝ █████╗  ██║  ██║    ██████╔╝██║   ██║███████╗
- ██║███╗██║██║██║     ██╔═██╗ ██╔══╝  ██║  ██║    ██╔══██╗██║   ██║╚════██║
- ╚███╔███╔╝██║╚██████╗██║  ██╗███████╗██████╔╝    ██████╔╝╚██████╔╝███████║
-  ╚══╝╚══╝ ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝     ╚═════╝  ╚═════╝ ╚══════╝
+          _      _            _       _
+__      _(_) ___| | _____  __| |     | |__  _   _ ___
+\ \ /\ / / |/ __| |/ / _ \/ _` |_____| '_ \| | | / __|
+ \ V  V /| | (__|   <  __/ (_| |_____| |_) | |_| \__ \
+  \_/\_/ |_|\___|_|\_\___|\__,_|     |_.__/ \__,_|___/
+
 ```
 
 **The durable coordination fabric for AI agents and developer tools.**
@@ -24,7 +24,7 @@ Built for agent ecosystems where multiple tools need to communicate without coup
 AI coding assistants, test runners, knowledge systems, deployment tools, or anything that benefits
 from durable, event-driven coordination.
 
-> **Status:** v2.2.3, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
+> **Status:** v2.3.0, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
 > (also GitHub Packages as `@mikeparcewski/wicked-bus`). Pure JavaScript/ESM — no build step, no
 > Rust. The v2 line is a layered coordination fabric where every layer is optional, with the v1
 > `emit/poll/ack/register` API preserved unchanged.
@@ -37,25 +37,12 @@ from durable, event-driven coordination.
 replay — a coordination fabric with real delivery guarantees that still needs zero infrastructure to
 run.
 
-wicked-bus is the **event substrate** of the [wicked-* foundation](https://we.wickedagile.com): a
+wicked-bus is the **event substrate** of the [wicked-* family](https://wickedagile.com): a
 local-first stack for AI coding agents anchored by [wicked-estate](https://github.com/mikeparcewski/wicked-estate)
 (the code graph), with [wicked-core](https://github.com/mikeparcewski/wicked-core) (the runtime),
 [wicked-brain](https://github.com/mikeparcewski/wicked-brain) (memory), and
-[wicked-crew](https://github.com/mikeparcewski/wicked-crew) (the agentic execution harness).
-
-> **Status:** v2.2.3, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
-> (also GitHub Packages as `@mikeparcewski/wicked-bus`). Pure JavaScript/ESM — no build step.
-> The v2 line is a layered coordination fabric where every layer is optional, with the v1
-> `emit/poll/ack/register` API preserved unchanged.
-
-**The differentiator:** a zero-infrastructure event substrate — at-least-once, cursor-poll delivery
-entirely on local SQLite, with no network transport and no running server.
-
-wicked-bus is the **event substrate** of the [wicked-* foundation](https://we.wickedagile.com): a
-local-first stack for AI coding agents anchored by [wicked-estate](https://github.com/mikeparcewski/wicked-estate)
-(the code graph), with [wicked-core](https://github.com/mikeparcewski/wicked-core) (the runtime),
-[wicked-brain](https://github.com/mikeparcewski/wicked-brain) (memory), and
-[wicked-crew](https://github.com/mikeparcewski/wicked-crew) (the workflow governor).
+[wicked-crew](https://github.com/mikeparcewski/wicked-crew) (the workflow governor that drives your
+coding-agent CLIs as governed workers).
 
 ## Quick Start
 
@@ -79,7 +66,7 @@ Creates `~/.something-wicked/wicked-bus/` with a WAL-mode SQLite database.
 
 ```bash
 wicked-bus emit \
-  --type wicked.task.completed \
+  --type wicked.myplugin.task.completed \
   --domain my-plugin \
   --payload '{"taskId": "abc", "status": "done"}'
 ```
@@ -87,7 +74,7 @@ wicked-bus emit \
 ### Subscribe to events
 
 ```bash
-wicked-bus subscribe --filter 'wicked.task.*'
+wicked-bus subscribe --filter 'wicked.myplugin.task.*'
 ```
 
 Streams events as NDJSON. Use `--filter` with wildcards and `@domain` scoping.
@@ -104,7 +91,7 @@ const db = openDb(config);
 
 // Emit
 const result = emit(db, config, {
-  event_type: 'wicked.deploy.completed',
+  event_type: 'wicked.mydeploy.deploy.completed',
   domain: 'my-deploy',
   subdomain: 'deploy.production',
   payload: { version: '2.0.0' },
@@ -114,14 +101,14 @@ const result = emit(db, config, {
 const sub = register(db, {
   plugin: 'my-consumer',
   role: 'subscriber',
-  event_type_filter: 'wicked.deploy.*',
+  event_type_filter: 'wicked.mydeploy.deploy.*',
   cursor_init: 'latest',
 });
 
 // Poll
 const events = poll(db, config, {
   cursor_id: sub.cursor_id,
-  filter: 'wicked.deploy.*',
+  filter: 'wicked.mydeploy.deploy.*',
 });
 
 // Acknowledge
@@ -164,13 +151,13 @@ Auto-detects installed CLIs and copies skills. Available skills:
 
 | Skill | Purpose |
 |-------|---------|
-| `wicked-bus/init` | Initialize or connect to the bus |
-| `wicked-bus/emit` | Publish events |
-| `wicked-bus/subscribe` | Consume events |
-| `wicked-bus/naming` | Event naming conventions |
-| `wicked-bus/query` | Query and debug |
-| `wicked-bus/status` | Bus health and diagnostics |
-| `wicked-bus/update` | Check for and install updates |
+| `wicked-bus-init` | Initialize or connect to the bus |
+| `wicked-bus-emit` | Publish events |
+| `wicked-bus-subscribe` | Consume events |
+| `wicked-bus-naming` | Event naming conventions |
+| `wicked-bus-query` | Query and debug |
+| `wicked-bus-status` | Bus health and diagnostics |
+| `wicked-bus-update` | Check for and install updates |
 
 ## Why wicked-bus?
 

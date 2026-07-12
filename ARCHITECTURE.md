@@ -115,10 +115,10 @@ Version tracking for future schema changes.
 
 | Pattern | SQL Generated |
 |---------|--------------|
-| `wicked.run.completed` | `event_type = 'wicked.run.completed'` |
-| `wicked.run.*` | `event_type LIKE 'wicked.run.%' AND event_type NOT LIKE 'wicked.run.%.%'` |
+| `wicked.test.run.completed` | `event_type = 'wicked.test.run.completed'` |
+| `wicked.test.run.*` | `event_type LIKE 'wicked.test.run.%' AND event_type NOT LIKE 'wicked.test.run.%.%'` |
 | `*@wicked-brain` | `domain = 'wicked-brain'` |
-| `wicked.run.*@wicked-testing` | Both type LIKE and domain = |
+| `wicked.test.run.*@wicked-testing` | Both type LIKE and domain = |
 
 ## Two-Timer TTL
 
@@ -164,10 +164,12 @@ All errors produce structured JSON to stderr:
 }
 ```
 
-## v1 Constraints
+## Constraints (v2.3.0)
 
-- Single-host only (no network transport)
-- No push delivery (poll-based only)
-- No background daemon (sweep runs in-process or via CLI)
-- No authentication
-- No multi-level wildcards (`wicked.**` is not supported)
+- Single-host only — push is delivered over a local Unix socket layered on durable poll; there is **no** remote/TCP event transport
+- No authentication or access control
+- No mandatory daemon: the TTL **sweep** runs in-process or via the CLI (there is no sweep daemon). **Push** delivery MAY run as an optional local daemon/process — the push-over-durable-poll daemon over a Unix socket — but durable poll works with no daemon at all
+
+Multi-level `**` wildcards, the push-over-durable-poll daemon, the dead-letter queue with operator
+replay, and monthly tiered storage all shipped in the v2 line — see the User's Guide for the current
+filter and delivery semantics.

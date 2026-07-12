@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_events_type_domain ON events(event_type, domain);
 |--------|------|----------|-------------|
 | `event_id` | INTEGER | No | Auto-increment primary key. Assigned by DB on insert; never supplied by producer. Used as cursor value — integer ordering guarantees delivery order within a topic. |
 | `event_type` | TEXT | No | Dot-separated event type. Max 64 chars. Pattern: `wicked.<domain>.<noun>.<verb>` (four segments). Example: `wicked.test.run.completed`. The producer's short name is the 2nd segment; the full package name is also carried in `domain`. |
-| `domain` | TEXT | No | The wicked-* domain that emitted the event. Max 64 chars. Example: `wicked-testing`, `wicked-garden`, `wicked-brain`. Used with `subdomain` to disambiguate events that share the same `event_type` (e.g. `wicked.project.created` from `wicked-testing` vs. `wicked-garden`). |
+| `domain` | TEXT | No | The wicked-* domain that emitted the event. Max 64 chars. Example: `wicked-testing`, `wicked-garden`, `wicked-brain`, `wicked-crew`. Used with `subdomain` to identify which publisher and functional area emitted the event (e.g. `wicked.test.project.created` from `wicked-testing` vs. `wicked.crew.project.created` from `wicked-crew`). |
 | `subdomain` | TEXT | No | Functional area within the domain. Max 64 chars. Dot-separated. Defaults to empty string `''` when not supplied. Examples: `test.run`, `crew.phase`, `brain.memory`. Enables subscribers to filter within a domain's events without inspecting the payload. |
 | `payload` | TEXT | No | JSON text. Maximum size governed by `max_payload_bytes` config (default 1 MB). Must be a valid JSON object. |
 | `schema_version` | TEXT | No | Semver string declaring the producer's payload schema. Default `"1.0.0"`. v1 bus accepts `1.x`; major >= 2 triggers WB-005. |
@@ -265,14 +265,14 @@ queries use a type glob (`wicked.*.run.completed`) or the `@domain` column filte
 
 | Filter | Matches |
 |--------|---------|
-| `wicked.run.*` | All run lifecycle events from **any** publisher |
-| `wicked.run.*@wicked-testing` | All run lifecycle events from `wicked-testing` only |
-| `wicked.memory.*@wicked-brain` | All brain memory events |
+| `wicked.*.run.*` | All run lifecycle events from **any** publisher |
+| `wicked.test.run.*@wicked-testing` | All run lifecycle events from `wicked-testing` only |
+| `wicked.brain.memory.*@wicked-brain` | All brain memory events |
 | `*@wicked-garden` | Every event emitted by `wicked-garden` |
 
-The `@<source_plugin>` suffix is parsed server-side at poll time: the left side is a type wildcard,
-the right side is an exact `source_plugin` match. The `@` character is reserved and may not appear
-in event type strings or plugin names.
+The `@<domain>` suffix is parsed server-side at poll time: the left side is a type wildcard,
+the right side is an exact `domain` match. The `@` character is reserved and may not appear
+in event type strings or domain names.
 
 Do not construct event types dynamically — use an explicit mapping (see `WICKED_BUS_EVENT_MAP` in
 the integration spec).
@@ -285,25 +285,25 @@ Events emitted when a test or processing run starts, finishes, or fails.
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.run.started` | `test.run` | `wicked-testing`  | Test run begins | `runId`, `projectId`, `scenarioId`, `startedAt` | — |
-| `wicked.run.completed` | `test.run` | `wicked-testing`  | Run finishes; all steps executed (pass or fail) | `runId`, `projectId`, `scenarioId`, `status`, `duration_ms` | `evidencePath` |
-| `wicked.run.partial` | `test.run` | `wicked-testing`  | Run finishes with SKIPPed steps (tool unavailable) | `runId`, `projectId`, `scenarioId`, `skippedSteps`, `duration_ms` | `reason` |
-| `wicked.run.failed` | `test.run` | `wicked-testing`  | Run aborts due to exception or timeout | `runId`, `projectId`, `error`, `duration_ms` | — |
+| `wicked.test.run.started` | `test.run` | `wicked-testing`  | Test run begins | `runId`, `projectId`, `scenarioId`, `startedAt` | — |
+| `wicked.test.run.completed` | `test.run` | `wicked-testing`  | Run finishes; all steps executed (pass or fail) | `runId`, `projectId`, `scenarioId`, `status`, `duration_ms` | `evidencePath` |
+| `wicked.test.run.partial` | `test.run` | `wicked-testing`  | Run finishes with SKIPPed steps (tool unavailable) | `runId`, `projectId`, `scenarioId`, `skippedSteps`, `duration_ms` | `reason` |
+| `wicked.test.run.failed` | `test.run` | `wicked-testing`  | Run aborts due to exception or timeout | `runId`, `projectId`, `error`, `duration_ms` | — |
 
-**Wildcard**: `wicked.run.*` — all run events from any publisher. `wicked.run.*@wicked-testing` — testing runs only.
+**Wildcard**: `wicked.*.run.*` — all run events from any publisher. `wicked.test.run.*@wicked-testing` — testing runs only.
 
 ---
 
 ### Phase Lifecycle
 
-Events emitted by `wicked-garden` as crew project phases move through their lifecycle.
+Events emitted by `wicked-crew` as crew project phases move through their lifecycle.
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.crew.phase.started` | `crew.phase` | `wicked-garden` | Phase transitions to in_progress | `projectId`, `phaseName`, `startedAt` | — |
-| `wicked.crew.phase.completed` | `crew.phase` | `wicked-garden` | Phase passes its gate and is approved | `projectId`, `phaseName`, `duration_ms` | `deliverables` |
-| `wicked.crew.phase.skipped` | `crew.phase` | `wicked-garden` | Phase skipped (condition not met or explicit skip) | `projectId`, `phaseName`, `reason` | — |
-| `wicked.crew.phase.failed` | `crew.phase` | `wicked-garden` | Phase fails its gate | `projectId`, `phaseName`, `gateErrors` | — |
+| `wicked.crew.phase.started` | `crew.phase` | `wicked-crew` | Phase transitions to in_progress | `projectId`, `phaseName`, `startedAt` | — |
+| `wicked.crew.phase.completed` | `crew.phase` | `wicked-crew` | Phase passes its gate and is approved | `projectId`, `phaseName`, `duration_ms` | `deliverables` |
+| `wicked.crew.phase.skipped` | `crew.phase` | `wicked-crew` | Phase skipped (condition not met or explicit skip) | `projectId`, `phaseName`, `reason` | — |
+| `wicked.crew.phase.failed` | `crew.phase` | `wicked-crew` | Phase fails its gate | `projectId`, `phaseName`, `gateErrors` | — |
 
 **Wildcard**: `wicked.crew.phase.*` — all phase lifecycle events.
 
@@ -315,21 +315,21 @@ Events emitted when a crew quality gate runs or its result is overridden.
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.gate.run` | `crew.gate` | `wicked-garden` | Gate evaluation executes for a phase | `projectId`, `phaseName`, `gateType`, `result` | `conditions` |
-| `wicked.gate.passed` | `crew.gate` | `wicked-garden` | Gate returns APPROVE | `projectId`, `phaseName`, `gateType` | — |
-| `wicked.gate.overridden` | `crew.gate` | `wicked-garden` | Gate bypassed with override flag | `projectId`, `phaseName`, `reason`, `overriddenBy` | — |
+| `wicked.crew.gate.run` | `crew.gate` | `wicked-crew` | Gate evaluation executes for a phase | `projectId`, `phaseName`, `gateType`, `result` | `conditions` |
+| `wicked.crew.gate.passed` | `crew.gate` | `wicked-crew` | Gate returns APPROVE | `projectId`, `phaseName`, `gateType` | — |
+| `wicked.crew.gate.overridden` | `crew.gate` | `wicked-crew` | Gate bypassed with override flag | `projectId`, `phaseName`, `reason`, `overriddenBy` | — |
 
 ---
 
 ### Project Lifecycle
 
-Events emitted when a project is created or its lifecycle state changes. Shared type across publishers — use `source_plugin` to distinguish crew projects from test projects.
+Events emitted when a project is created or its lifecycle state changes. Producer-scoped types distinguish crew projects (`wicked.crew.project.*`, domain `wicked-crew`) from test projects (`wicked.test.project.*`, domain `wicked-testing`).
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.project.created` | `crew.project` | `wicked-garden` | New crew project initialized | `projectId`, `name`, `description` | — |
-| `wicked.project.created` | `test.project` | `wicked-testing`  | New test project initialized | `projectId`, `name` | — |
-| `wicked.project.archived` | `crew.project` | `wicked-garden` | Crew project archived | `projectId`, `archivedAt` | — |
+| `wicked.crew.project.created` | `crew.project` | `wicked-crew` | New crew project initialized | `projectId`, `name`, `description` | — |
+| `wicked.test.project.created` | `test.project` | `wicked-testing`  | New test project initialized | `projectId`, `name` | — |
+| `wicked.crew.project.archived` | `crew.project` | `wicked-crew` | Crew project archived | `projectId`, `archivedAt` | — |
 
 ---
 
@@ -339,9 +339,9 @@ Events emitted when a test verdict is recorded or evidence artifacts are collect
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.verdict.issued` | `test.verdict` | `wicked-testing`  | Reviewer verdict recorded for a run | `verdictId`, `runId`, `verdict`, `reviewer` | — |
-| `wicked.evidence.collected` | `test.evidence` | `wicked-testing`  | Evidence artifacts written after run | `runId`, `projectId`, `artifactCount`, `evidencePath` | — |
-| `wicked.pipeline.completed` | `test.acceptance` | `wicked-testing`  | 3-agent acceptance pipeline (writer→executor→reviewer) finishes | `runId`, `projectId`, `verdict`, `duration_ms` | — |
+| `wicked.test.verdict.issued` | `test.verdict` | `wicked-testing`  | Reviewer verdict recorded for a run | `verdictId`, `runId`, `verdict`, `reviewer` | — |
+| `wicked.test.evidence.collected` | `test.evidence` | `wicked-testing`  | Evidence artifacts written after run | `runId`, `projectId`, `artifactCount`, `evidencePath` | — |
+| `wicked.test.pipeline.completed` | `test.acceptance` | `wicked-testing`  | 3-agent acceptance pipeline (writer→executor→reviewer) finishes | `runId`, `projectId`, `verdict`, `duration_ms` | — |
 
 ---
 
@@ -351,9 +351,9 @@ Events emitted when test scenarios or strategies are created or authored.
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.scenario.created` | `test.scenario` | `wicked-testing`  | New test scenario created | `scenarioId`, `projectId`, `name`, `format_version` | — |
-| `wicked.scenario.authored` | `test.scenario` | `wicked-testing`  | Scenario authored by agent | `scenarioId`, `projectId` | — |
-| `wicked.strategy.generated` | `test.strategy` | `wicked-testing`  | Test strategy generated | `projectId` | `scenarioCount` |
+| `wicked.test.scenario.created` | `test.scenario` | `wicked-testing`  | New test scenario created | `scenarioId`, `projectId`, `name`, `format_version` | — |
+| `wicked.test.scenario.authored` | `test.scenario` | `wicked-testing`  | Scenario authored by agent | `scenarioId`, `projectId` | — |
+| `wicked.test.strategy.generated` | `test.strategy` | `wicked-testing`  | Test strategy generated | `projectId` | `scenarioCount` |
 
 ---
 
@@ -363,15 +363,15 @@ Events emitted by `wicked-brain` as memory chunks are stored, updated, or consol
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.memory.stored` | `brain.memory` | `wicked-brain` | Memory chunk written to store | `chunkId`, `tier`, `tags` | `size_bytes` |
-| `wicked.memory.updated` | `brain.memory` | `wicked-brain` | Memory chunk updated | `chunkId`, `tier`, `tags` | — |
-| `wicked.memory.expired` | `brain.memory` | `wicked-brain` | Memory chunk expired from store | `chunkId`, `tier` | — |
-| `wicked.memory.consolidated` | `brain.memory` | `wicked-brain` | Consolidation cycle ran; working memories promoted or archived | `promotedCount`, `archivedCount`, `duration_ms` | — |
-| `wicked.knowledge.updated` | `brain.index` | `wicked-brain` | Knowledge index rebuilt after ingest or retag | `indexSize`, `chunkCount`, `duration_ms` | — |
-| `wicked.chunk.indexed` | `brain.fts` | `wicked-brain` | Non-memory content chunk added to FTS index | `chunkId`, `sourcePath`, `chunkType` | `size_bytes` |
-| `wicked.article.synthesized` | `brain.wiki` | `wicked-brain` | Wiki article compiled from indexed chunks | `articleId`, `title`, `chunkCount` | — |
+| `wicked.brain.memory.stored` | `brain.memory` | `wicked-brain` | Memory chunk written to store | `chunkId`, `tier`, `tags` | `size_bytes` |
+| `wicked.brain.memory.updated` | `brain.memory` | `wicked-brain` | Memory chunk updated | `chunkId`, `tier`, `tags` | — |
+| `wicked.brain.memory.expired` | `brain.memory` | `wicked-brain` | Memory chunk expired from store | `chunkId`, `tier` | — |
+| `wicked.brain.memory.consolidated` | `brain.memory` | `wicked-brain` | Consolidation cycle ran; working memories promoted or archived | `promotedCount`, `archivedCount`, `duration_ms` | — |
+| `wicked.brain.knowledge.updated` | `brain.index` | `wicked-brain` | Knowledge index rebuilt after ingest or retag | `indexSize`, `chunkCount`, `duration_ms` | — |
+| `wicked.brain.chunk.indexed` | `brain.fts` | `wicked-brain` | Non-memory content chunk added to FTS index | `chunkId`, `sourcePath`, `chunkType` | `size_bytes` |
+| `wicked.brain.article.synthesized` | `brain.wiki` | `wicked-brain` | Wiki article compiled from indexed chunks | `articleId`, `title`, `chunkCount` | — |
 
-**Wildcard**: `wicked.memory.*@wicked-brain` — all brain memory lifecycle events.
+**Wildcard**: `wicked.brain.memory.*@wicked-brain` — all brain memory lifecycle events.
 
 ---
 
