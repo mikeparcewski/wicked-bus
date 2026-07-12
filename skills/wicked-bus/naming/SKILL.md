@@ -269,10 +269,10 @@ producer that owns them):
 | Gate | Producer `domain` | Event types emitted |
 |------|-------------------|---------------------|
 | **QE acceptance gate** | `wicked-testing` | `wicked.qe.gate.passed`, `wicked.qe.gate.failed`, `wicked.qe.gate.conditional`, `wicked.qe.deploy.completed` |
-| **Crew phase gate** | `wicked-garden` | `wicked.gate.decided` (a *command* — it directs the next step, not a pass/fail outcome), `wicked.gate.blocked` |
+| **Crew phase gate** | `wicked-crew` | `wicked.crew.gate.decided` (a *command* — it directs the next step, not a pass/fail outcome), `wicked.crew.gate.blocked` |
 
 Same word ("gate"), two distinct real events, told apart by `domain` and by
-namespace prefix (`wicked.qe.gate.*` versus `wicked.gate.*`). `wicked.qe.gate.*`
-matches only wicked-testing's QE gate; it does **not** reach wicked-garden's crew
+namespace prefix (`wicked.qe.gate.*` versus `wicked.crew.gate.*`). `wicked.qe.gate.*`
+matches only wicked-testing's QE gate; it does **not** reach wicked-crew's phase
 gate. There is **no** `wicked.gate.cleared` and **no** unified gate stream — do not
 emit or subscribe to them. See the wicked-bus User's Guide for full payload fields.

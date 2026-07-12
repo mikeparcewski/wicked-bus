@@ -8,7 +8,7 @@ Every event in wicked-bus has three identity fields and a payload:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  event_type: wicked.deployment.completed            │  ← What happened
+│  event_type: wicked.mydeploy.deployment.completed   │  ← What happened
 │  domain:     my-deploy-tool                         │  ← Who did it
 │  subdomain:  deploy.production                      │  ← Where in the system
 │  payload:    { version: "2.0.0", duration_ms: 450 } │  ← The details
@@ -64,11 +64,11 @@ Use these consistently:
 
 | Wrong | Why | Correct |
 |-------|-----|---------|
-| `my-plugin.task.completed` | Domain in the type | `wicked.task.completed` + domain=`my-plugin` |
-| `wicked.task.complete` | Not past tense | `wicked.task.completed` |
-| `wicked.my.task.completed` | Four segments | `wicked.task.completed` + subdomain for context |
-| `task.completed` | Missing `wicked.` prefix | `wicked.task.completed` |
-| `wicked.taskCompleted` | camelCase | `wicked.task.completed` |
+| `wicked.task.completed` | Missing the domain segment (only three) | `wicked.myapp.task.completed` |
+| `my-plugin.task.completed` | Domain baked into the type instead of the `domain` column | `wicked.myapp.task.completed` + domain=`my-plugin` |
+| `wicked.myapp.task.complete` | Not past tense | `wicked.myapp.task.completed` |
+| `task.completed` | Missing `wicked.` prefix | `wicked.myapp.task.completed` |
+| `wicked.myapp.taskCompleted` | camelCase | `wicked.myapp.task.completed` |
 
 ## Choosing Your Domain
 
@@ -141,7 +141,7 @@ import { emit } from 'wicked-bus';
 
 // Entering the "transform" stage
 emit(db, config, {
-  event_type: 'wicked.stage.entered',
+  event_type: 'wicked.engine.stage.entered',
   domain: 'engine',
   subdomain: 'lifecycle.transform',
   payload: { stage: 'transform', ref: '<authoritative-state-id>' },
@@ -149,7 +149,7 @@ emit(db, config, {
 
 // The "transform" stage finishes
 emit(db, config, {
-  event_type: 'wicked.stage.completed',
+  event_type: 'wicked.engine.stage.completed',
   domain: 'engine',
   subdomain: 'lifecycle.transform',
   payload: { stage: 'transform', ref: '<authoritative-state-id>' },
@@ -160,8 +160,8 @@ Because the stage lives in `subdomain` and the engine in `domain`, subscribers
 get expressive filters for free:
 
 ```bash
-wicked-bus subscribe --filter 'wicked.stage.*'    # every stage transition
-wicked-bus subscribe --filter '*@engine'          # everything that engine emits
+wicked-bus subscribe --filter 'wicked.engine.stage.*'   # every stage transition
+wicked-bus subscribe --filter '*@engine'                # everything that engine emits
 ```
 
 These events **announce** transitions; they do not **store** lifecycle state. The
@@ -196,19 +196,19 @@ clears the quality bar. Producer `domain = wicked-testing`.
 wicked-bus subscribe --filter 'wicked.qe.gate.*'
 ```
 
-### 2. Crew phase gate — produced by `wicked-garden`
+### 2. Crew phase gate — produced by `wicked-crew`
 
-The crew workflow in **wicked-garden** gates each phase transition. Producer
-`domain = wicked-garden`.
+The crew workflow in **wicked-crew** gates each phase transition. Producer
+`domain = wicked-crew`.
 
 | Event type | Emitted when |
 |------------|--------------|
-| `wicked.gate.decided` | A phase-gate decision was issued. **This is a command** — it directs the next step rather than reporting a pass/fail outcome; the decision detail lives in the payload. |
-| `wicked.gate.blocked` | A phase gate withheld approval (the "stop" signal) |
+| `wicked.crew.gate.decided` | A phase-gate decision was issued. **This is a command** — it directs the next step rather than reporting a pass/fail outcome; the decision detail lives in the payload. |
+| `wicked.crew.gate.blocked` | A phase gate withheld approval (the "stop" signal) |
 
 ```bash
-# Every crew phase-gate signal (this namespace is unique to wicked-garden)
-wicked-bus subscribe --filter 'wicked.gate.*'
+# Every crew phase-gate signal (this namespace is unique to wicked-crew)
+wicked-bus subscribe --filter 'wicked.crew.gate.*'
 ```
 
 ### Why they are separate
@@ -216,9 +216,9 @@ wicked-bus subscribe --filter 'wicked.gate.*'
 The two gates answer different questions — *does this evidence clear QE?* versus
 *may this crew phase advance?* — run in different products, and are **not
 interchangeable**. Keeping them in distinct namespaces (`wicked.qe.gate.*` versus
-`wicked.gate.*`) means `wicked.gate.*` matches only wicked-garden's crew gate and
+`wicked.crew.gate.*`) means `wicked.crew.gate.*` matches only wicked-crew's phase gate and
 does **not** sweep in wicked-testing's QE gate. Add the `@domain` suffix
-(`wicked.gate.*@wicked-garden`, `wicked.qe.gate.*@wicked-testing`) when you want
+(`wicked.crew.gate.*@wicked-crew`, `wicked.qe.gate.*@wicked-testing`) when you want
 to be explicit about the producer. These are the events actually emitted today;
 `wicked.gate.cleared` and a unified gate namespace are **not** real — do not
 subscribe to or emit them.
@@ -330,7 +330,7 @@ prefix; it does not match the bare prefix on its own.
 
 ### What "At-Least-Once" Means for You
 
-Your event handler should be idempotent. If you process `wicked.task.completed` for task `abc-123`, and then receive it again (because you crashed before acking), processing it a second time should be harmless.
+Your event handler should be idempotent. If you process `wicked.myapp.task.completed` for task `abc-123`, and then receive it again (because you crashed before acking), processing it a second time should be harmless.
 
 Common patterns:
 - Use the `idempotency_key` to check if you've already processed an event
@@ -402,7 +402,7 @@ def emit_to_bus(event_type, domain, payload, timeout_ms=100):
 ### "My subscriber isn't getting events"
 
 1. Is the bus initialized? `wicked-bus status`
-2. Does your filter match? `wicked.task.*` matches `wicked.task.completed` but not `wicked.task.step.completed` (use `wicked.task.**` for the latter, or `wicked.**` for everything)
+2. Does your filter match? `wicked.myapp.task.*` matches `wicked.myapp.task.completed` but not `wicked.myapp.task.step.completed` (use `wicked.myapp.task.**` for the latter, or `wicked.**` for everything)
 3. Is the `@domain` suffix correct? It must match the `domain` column exactly
 4. Are the events expired? Default visibility is 72 hours
 5. Is your subscription deregistered? `wicked-bus list --include-deregistered`

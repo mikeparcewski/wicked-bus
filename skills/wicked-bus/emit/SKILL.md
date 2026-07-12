@@ -35,7 +35,7 @@ const config = loadConfig();
 const db = openDb(config);
 
 const result = emit(db, config, {
-  event_type: 'wicked.task.completed',
+  event_type: 'wicked.myplugin.task.completed',
   domain: 'my-plugin',
   subdomain: 'workflow.task',
   payload: { taskId: 'abc-123', status: 'done' },
@@ -82,7 +82,7 @@ async function emitToBus(event) {
 
 ```javascript
 emit(db, config, {
-  event_type: 'wicked.cache.invalidated',
+  event_type: 'wicked.myplugin.cache.invalidated',
   domain: 'my-plugin',
   payload: { keys: ['user:123'] },
   ttl_hours: 4, // Override default 72h TTL
@@ -93,7 +93,7 @@ emit(db, config, {
 
 ```javascript
 emit(db, config, {
-  event_type: 'wicked.job.completed',
+  event_type: 'wicked.myplugin.job.completed',
   domain: 'my-plugin',
   subdomain: 'jobs.batch',
   payload: { jobId: 'job-42' },
@@ -107,7 +107,7 @@ emit(db, config, {
 
 ```bash
 npx wicked-bus emit \
-  --type wicked.task.completed \
+  --type wicked.myplugin.task.completed \
   --domain my-plugin \
   --subdomain workflow.task \
   --payload '{"taskId": "abc-123", "status": "done"}'
@@ -117,7 +117,7 @@ npx wicked-bus emit \
 
 ```bash
 npx wicked-bus emit \
-  --type wicked.report.generated \
+  --type wicked.myplugin.report.generated \
   --domain my-plugin \
   --payload @./report-data.json
 ```
@@ -126,7 +126,7 @@ npx wicked-bus emit \
 
 ```bash
 npx wicked-bus emit \
-  --type wicked.deploy.completed \
+  --type wicked.mydeploy.deploy.completed \
   --domain my-deploy \
   --subdomain deploy.production \
   --payload '{"version": "2.0.0"}' \
