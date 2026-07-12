@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { run, CLI } from './helpers.js';
+import { openDb } from '../../lib/db.js';
+import { loadConfig } from '../../lib/config.js';
+import { emit } from '../../lib/emit.js';
+import { register } from '../../lib/register.js';
 
 describe('wicked-bus subscribe', () => {
   let tmpDir;
@@ -25,55 +29,68 @@ describe('wicked-bus subscribe', () => {
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
   });
 
-  it('outputs NDJSON events and exits on timeout', (done) => {
-    const child = execFile('node', [
-      CLI, 'subscribe',
-      '--plugin', 'test-consumer',
-      '--filter', 'wicked.test.run.*',
-      '--cursor-init', 'oldest',
-      '--poll-interval-ms', '100',
-    ], {
-      env: { ...process.env, WICKED_BUS_DATA_DIR: tmpDir },
-      timeout: 3000,
-    }, (err, stdout, stderr) => {
-      // Process will be killed by timeout, which is expected
-      const lines = stdout.trim().split('\n').filter(l => l.length > 0);
-      expect(lines.length).toBeGreaterThanOrEqual(2);
+  it('outputs NDJSON events and exits on timeout', () => {
+    return new Promise((resolve, reject) => {
+      const child = execFile('node', [
+        CLI, 'subscribe',
+        '--plugin', 'test-consumer',
+        '--filter', 'wicked.test.run.*',
+        '--cursor-init', 'oldest',
+        '--poll-interval-ms', '100',
+      ], {
+        env: { ...process.env, WICKED_BUS_DATA_DIR: tmpDir },
+        timeout: 3000,
+      }, (err, stdout, stderr) => {
+        try {
+          // Process will be killed by timeout, which is expected
+          const lines = stdout.trim().split('\n').filter(l => l.length > 0);
+          expect(lines.length).toBeGreaterThanOrEqual(2);
 
-      for (const line of lines) {
-        const event = JSON.parse(line);
-        expect(event.event_id).toBeDefined();
-        expect(event.event_type).toMatch(/^wicked\.test\.run\./);
-      }
-      done();
+          for (const line of lines) {
+            const event = JSON.parse(line);
+            expect(event.event_id).toBeDefined();
+            expect(event.event_type).toMatch(/^wicked\.test\.run\./);
+          }
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+
+      // Kill after 2 seconds to let it poll at least once
+      setTimeout(() => {
+        child.kill('SIGTERM');
+      }, 2000);
     });
-
-    // Kill after 2 seconds to let it poll at least once
-    setTimeout(() => {
-      child.kill('SIGTERM');
-    }, 2000);
   }, 10000);
 
   it('auto-registers when no cursor-id provided', () => {
-    const child = execFile('node', [
-      CLI, 'subscribe',
-      '--plugin', 'auto-reg-consumer-' + randomUUID(),
-      '--filter', 'wicked.test.run.*',
-      '--cursor-init', 'latest',
-      '--poll-interval-ms', '100',
-    ], {
-      env: { ...process.env, WICKED_BUS_DATA_DIR: tmpDir },
-      timeout: 2000,
-    }, (err, stdout) => {
-      // Should not error out - just timeout
-      // Verify that a subscription was created
-      const result = run(['list', '--role', 'subscriber'], { dataDir: tmpDir });
-      expect(result.exitCode).toBe(0);
-    });
+    return new Promise((resolve, reject) => {
+      const child = execFile('node', [
+        CLI, 'subscribe',
+        '--plugin', 'auto-reg-consumer-' + randomUUID(),
+        '--filter', 'wicked.test.run.*',
+        '--cursor-init', 'latest',
+        '--poll-interval-ms', '100',
+      ], {
+        env: { ...process.env, WICKED_BUS_DATA_DIR: tmpDir },
+        timeout: 2000,
+      }, (err, stdout) => {
+        try {
+          // Should not error out - just timeout
+          // Verify that a subscription was created
+          const result = run(['list', '--role', 'subscriber'], { dataDir: tmpDir });
+          expect(result.exitCode).toBe(0);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
 
-    setTimeout(() => {
-      child.kill('SIGTERM');
-    }, 1500);
+      setTimeout(() => {
+        child.kill('SIGTERM');
+      }, 1500);
+    });
   }, 5000);
 
   it('--help prints usage and exits 0 without touching the DB', () => {
@@ -212,7 +229,7 @@ describe('wicked-bus subscribe', () => {
     expect(elapsed).toBeGreaterThanOrEqual(350);
   }, 10000);
 
-  it('--no-ack mode does not advance cursor', (done) => {
+  it('--no-ack mode does not advance cursor', () => {
     // Register a subscriber first
     const regResult = run([
       'register', '--role', 'subscriber',
@@ -222,30 +239,155 @@ describe('wicked-bus subscribe', () => {
     ], { dataDir: tmpDir });
     const reg = JSON.parse(regResult.stdout);
 
-    const child = execFile('node', [
-      CLI, 'subscribe',
-      '--plugin', 'noack-consumer',
-      '--filter', 'wicked.test.run.*',
-      '--cursor-id', reg.cursor_id,
-      '--no-ack',
-      '--poll-interval-ms', '100',
-    ], {
-      env: { ...process.env, WICKED_BUS_DATA_DIR: tmpDir },
-      timeout: 3000,
-    }, () => {
-      // After subscribe exits, check cursor was not advanced
-      const statusResult = run(['status'], { dataDir: tmpDir });
-      const status = JSON.parse(statusResult.stdout);
-      const sub = status.subscribers.find(s => s.cursor_id === reg.cursor_id);
-      if (sub) {
-        // Cursor should still be at 0 since --no-ack was used
-        expect(sub.last_event_id).toBe(0);
-      }
-      done();
-    });
+    return new Promise((resolve, reject) => {
+      const child = execFile('node', [
+        CLI, 'subscribe',
+        '--plugin', 'noack-consumer',
+        '--filter', 'wicked.test.run.*',
+        '--cursor-id', reg.cursor_id,
+        '--no-ack',
+        '--poll-interval-ms', '100',
+      ], {
+        env: { ...process.env, WICKED_BUS_DATA_DIR: tmpDir },
+        timeout: 3000,
+      }, () => {
+        try {
+          // After subscribe exits, check cursor was not advanced
+          const statusResult = run(['status'], { dataDir: tmpDir });
+          const status = JSON.parse(statusResult.stdout);
+          const sub = status.subscribers.find(s => s.cursor_id === reg.cursor_id);
+          if (sub) {
+            // Cursor should still be at 0 since --no-ack was used
+            expect(sub.last_event_id).toBe(0);
+          }
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
 
-    setTimeout(() => {
-      child.kill('SIGTERM');
-    }, 1500);
+      setTimeout(() => {
+        child.kill('SIGTERM');
+      }, 1500);
+    });
+  }, 10000);
+});
+
+describe('wicked-bus subscribe — WB-003 self-recovery (#27)', () => {
+  let tmpDir, prevEnv;
+
+  beforeEach(() => {
+    tmpDir = join(tmpdir(), 'wb-cli-sub-recover-' + randomUUID());
+    mkdirSync(tmpDir, { recursive: true });
+    run(['init'], { dataDir: tmpDir });
+    prevEnv = process.env.WICKED_BUS_DATA_DIR;
+  });
+
+  afterEach(() => {
+    if (prevEnv) process.env.WICKED_BUS_DATA_DIR = prevEnv;
+    else delete process.env.WICKED_BUS_DATA_DIR;
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+  });
+
+  /**
+   * Seed a subscriber whose cursor is behind the TTL sweep window:
+   * emit `total` events, register at oldest (cursor=0), then delete the
+   * `sweptUpTo` oldest events so MIN(event_id) = sweptUpTo + 1 and the cursor
+   * is stranded behind the window. Returns the cursor_id.
+   */
+  function seedBehindTtl({ plugin, total = 5, sweptUpTo = 2 }) {
+    process.env.WICKED_BUS_DATA_DIR = tmpDir;
+    const config = loadConfig();
+    const db = openDb(config);
+    try {
+      for (let i = 0; i < total; i++) {
+        emit(db, config, {
+          event_type: 'wicked.test.run.completed',
+          domain: 'wicked-testing',
+          payload: { i },
+        });
+      }
+      const reg = register(db, {
+        plugin, role: 'subscriber', filter: 'wicked.test.run.*', cursor_init: 'oldest',
+      });
+      db.prepare('DELETE FROM events WHERE event_id <= ?').run(sweptUpTo);
+      return reg.cursor_id;
+    } finally {
+      db.close();
+    }
+  }
+
+  it('--once recovers and resumes from the oldest survivor without skipping', () => {
+    // 5 events, sweep 1..2 → survivors are 3,4,5; cursor stranded at 0.
+    const cursorId = seedBehindTtl({ plugin: 'recover-consumer', total: 5, sweptUpTo: 2 });
+
+    const result = run([
+      'subscribe', '--plugin', 'recover-consumer',
+      '--cursor-id', cursorId, '--once',
+    ], { dataDir: tmpDir });
+
+    expect(result.exitCode).toBe(0);
+    const ids = result.stdout.trim().split('\n').filter(Boolean)
+      .map(l => JSON.parse(l).event_id);
+    // Every surviving event delivered, none skipped, no fast-forward to head.
+    expect(ids).toEqual([3, 4, 5]);
+
+    // A recovery diagnostic went to stderr (not silent).
+    const warnings = result.stderr.trim().split('\n').filter(Boolean)
+      .map(l => JSON.parse(l));
+    const recovered = warnings.find(w => w.warning === 'WB-003');
+    expect(recovered).toBeDefined();
+    expect(recovered.next_delivery_from).toBe(3);
+    expect(recovered.reanchored_to).toBe(2);
+  });
+
+  it('--once --on-stale fail exits non-zero with WB-003 (opt-out)', () => {
+    const cursorId = seedBehindTtl({ plugin: 'fail-consumer', total: 5, sweptUpTo: 2 });
+
+    const result = run([
+      'subscribe', '--plugin', 'fail-consumer',
+      '--cursor-id', cursorId, '--once', '--on-stale', 'fail',
+    ], { dataDir: tmpDir });
+
+    expect(result.exitCode).toBe(3); // EXIT_CODES['WB-003']
+    expect(result.stdout.trim()).toBe('');
+    expect(JSON.parse(result.stderr.trim().split('\n').filter(Boolean).pop()).error)
+      .toBe('WB-003');
+  });
+
+  it('invalid --on-stale fails fast with WB-001', () => {
+    const result = run([
+      'subscribe', '--plugin', 'x', '--once', '--on-stale', 'bogus',
+    ], { dataDir: tmpDir });
+    expect(result.exitCode).not.toBe(0);
+    expect(JSON.parse(result.stderr.trim()).error).toBe('WB-001');
+  });
+
+  it('streaming (non-drain) subscribe also self-recovers instead of dying', () => {
+    const cursorId = seedBehindTtl({ plugin: 'stream-recover', total: 5, sweptUpTo: 2 });
+
+    return new Promise((resolve, reject) => {
+      const child = execFile('node', [
+        CLI, 'subscribe', '--plugin', 'stream-recover',
+        '--cursor-id', cursorId, '--poll-interval-ms', '100',
+      ], {
+        env: { ...process.env, WICKED_BUS_DATA_DIR: tmpDir },
+        timeout: 4000,
+      }, (err, stdout, stderr) => {
+        try {
+          const ids = stdout.trim().split('\n').filter(Boolean)
+            .map(l => JSON.parse(l).event_id);
+          // Surviving events delivered on the recovered stream.
+          expect(ids).toEqual(expect.arrayContaining([3, 4, 5]));
+          // Recovery diagnostic present; the loop did NOT exit fatally with WB-003.
+          expect(stderr).toMatch(/WB-003/);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+
+      setTimeout(() => child.kill('SIGTERM'), 1200);
+    });
   }, 10000);
 });

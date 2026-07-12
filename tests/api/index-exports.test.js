@@ -22,6 +22,14 @@ describe('ESM exports', () => {
     expect(typeof wickedBus.deregister).toBe('function');
   });
 
+  it('exports deregisterByPlugin', () => {
+    expect(typeof wickedBus.deregisterByPlugin).toBe('function');
+  });
+
+  it('exports reanchorCursor', () => {
+    expect(typeof wickedBus.reanchorCursor).toBe('function');
+  });
+
   it('exports openDb', () => {
     expect(typeof wickedBus.openDb).toBe('function');
   });

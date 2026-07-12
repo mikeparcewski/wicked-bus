@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { openDb } from '../../lib/db.js';
 import { writeDefaultConfig, loadConfig } from '../../lib/config.js';
 import { emit } from '../../lib/emit.js';
-import { poll, ack, matchesFilter } from '../../lib/poll.js';
+import { poll, ack, matchesFilter, reanchorCursor } from '../../lib/poll.js';
 import { register } from '../../lib/register.js';
 import { WBError } from '../../lib/errors.js';
 
@@ -147,6 +147,76 @@ describe('poll', () => {
     const reg = registerSub();
     const events = poll(db, reg.cursor_id);
     expect(events).toHaveLength(0);
+  });
+
+  // ── WB-003 self-recovery via reanchorCursor ───────────────────────────────
+  describe('reanchorCursor (WB-003 recovery)', () => {
+    it('re-anchors a behind-TTL cursor so poll resumes from the oldest survivor', () => {
+      for (let i = 0; i < 5; i++) emitEvent();          // event_ids 1..5
+      const reg = registerSub('wicked.test.run.*', 'oldest'); // cursor at 0
+      db.prepare('DELETE FROM events WHERE event_id <= 2').run(); // MIN = 3
+
+      // Sanity: the cursor is behind the sweep window and poll throws WB-003.
+      let ctx;
+      try {
+        poll(db, reg.cursor_id);
+        expect.fail('should throw WB-003');
+      } catch (err) {
+        expect(err.error).toBe('WB-003');
+        ctx = err.context;
+      }
+      expect(ctx.oldest_available_event_id).toBe(3);
+
+      // Recover exactly as the CLI does: re-anchor to oldest_available - 1.
+      const res = reanchorCursor(db, reg.cursor_id, ctx.oldest_available_event_id - 1);
+      expect(res.reanchored).toBe(true);
+      expect(res.last_event_id).toBe(2);
+
+      // Poll now succeeds and delivers EVERY surviving event — none skipped.
+      const events = poll(db, reg.cursor_id);
+      expect(events.map(e => e.event_id)).toEqual([3, 4, 5]);
+    });
+
+    it('does not skip still-deliverable events (no fast-forward to head)', () => {
+      for (let i = 0; i < 6; i++) emitEvent();          // 1..6
+      const reg = registerSub('wicked.test.run.*', 'oldest');
+      db.prepare('DELETE FROM events WHERE event_id <= 3').run(); // sweep 1..3, MIN = 4
+
+      let oldest;
+      try {
+        poll(db, reg.cursor_id);
+      } catch (err) {
+        oldest = err.context.oldest_available_event_id; // 4
+      }
+      reanchorCursor(db, reg.cursor_id, oldest - 1); // anchor to 3
+
+      // Drains 4,5,6 — the survivors — rather than jumping to MAX(6) and
+      // silently discarding 4 and 5.
+      const events = poll(db, reg.cursor_id);
+      expect(events.map(e => e.event_id)).toEqual([4, 5, 6]);
+    });
+
+    it('persists the new floor durably on the cursor row', () => {
+      for (let i = 0; i < 3; i++) emitEvent();
+      const reg = registerSub('wicked.test.run.*', 'oldest');
+      reanchorCursor(db, reg.cursor_id, 1);
+      const cursor = db.prepare('SELECT last_event_id, acked_at FROM cursors WHERE cursor_id = ?')
+        .get(reg.cursor_id);
+      expect(cursor.last_event_id).toBe(1);
+      expect(cursor.acked_at).toBeTruthy();
+    });
+
+    it('throws WB-006 for a deregistered cursor', () => {
+      const reg = registerSub();
+      db.prepare('UPDATE cursors SET deregistered_at = ? WHERE cursor_id = ?')
+        .run(Date.now(), reg.cursor_id);
+      try {
+        reanchorCursor(db, reg.cursor_id, 1);
+        expect.fail('should throw');
+      } catch (err) {
+        expect(err.error).toBe('WB-006');
+      }
+    });
   });
 
   it('afterEventId overrides the cursor floor without mutating it', () => {
