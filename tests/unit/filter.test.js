@@ -38,7 +38,7 @@ describe('matchesFilter', () => {
 
   describe('multi-level wildcard (**)', () => {
     it('wicked.** matches every event under the wicked prefix (the intuitive filter)', () => {
-      // The naming convention is wicked.<noun>.<verb> (3+ segments), so the
+      // The naming convention is wicked.<domain>.<noun>.<verb> (4 segments), so the
       // "subscribe to everything under wicked" filter must be wicked.**
       expect(matchesFilter('wicked.fact.extracted', 'x', 'wicked.**')).toBe(true);
       expect(matchesFilter('wicked.test.run.completed', 'x', 'wicked.**')).toBe(true);

@@ -26,22 +26,24 @@ Every event in wicked-bus has three identity fields and a payload:
 ### The Pattern
 
 ```
-wicked.<noun>.<past-tense-verb>
+wicked.<domain>.<noun>.<past-tense-verb>
 ```
 
-Three segments. Always starts with `wicked.`. The noun is the thing that changed. The verb is past tense -- what already happened.
+Four segments. Always starts with `wicked.`. The domain is the producing plugin's short name
+(the full package name also goes in the `domain` column). The noun is the thing that changed.
+The verb is past tense -- what already happened. (Examples below use `myapp` as the producer.)
 
 ### Examples
 
 | Event Type | What It Means |
 |------------|--------------|
-| `wicked.deployment.completed` | A deployment finished |
-| `wicked.deployment.started` | A deployment began |
-| `wicked.deployment.failed` | A deployment failed |
-| `wicked.task.created` | A task was created |
-| `wicked.cache.invalidated` | A cache was cleared |
-| `wicked.build.completed` | A build finished |
-| `wicked.report.generated` | A report was produced |
+| `wicked.myapp.deployment.completed` | A deployment finished |
+| `wicked.myapp.deployment.started` | A deployment began |
+| `wicked.myapp.deployment.failed` | A deployment failed |
+| `wicked.myapp.task.created` | A task was created |
+| `wicked.myapp.cache.invalidated` | A cache was cleared |
+| `wicked.myapp.build.completed` | A build finished |
+| `wicked.myapp.report.generated` | A report was produced |
 
 ### Common Verbs
 
@@ -103,25 +105,26 @@ Rules:
 
 > **Illustrative pattern, not a mandate.** wicked-bus does not ship, register, or
 > enforce a lifecycle catalog. The names below are an example a staged-pipeline
-> tool *may* adopt to stay consistent with the `wicked.<noun>.<past-tense-verb>`
+> tool *may* adopt to stay consistent with the `wicked.<domain>.<noun>.<past-tense-verb>`
 > convention. Pick nouns/verbs that fit your domain — nothing here is reserved.
 > (For the *real* gate events other wicked products emit, see
 > [Gate Events](#gate-events-two-distinct-gates-in-the-ecosystem) below — those
 > are a catalog, not an illustration.)
 
 A tool that runs a **staged pipeline** (an engine moving work through ordered
-stages) needs a consistent way to signal "a stage was entered/completed".
+stages) needs a consistent way to signal "a stage was entered/completed". The
+example engine's short domain name is `engine`.
 
 ### Suggested event types
 
 | Event type | Emitted when |
 |------------|--------------|
-| `wicked.stage.entered` | A pipeline stage begins |
-| `wicked.stage.completed` | A stage finishes successfully |
+| `wicked.engine.stage.entered` | A pipeline stage begins |
+| `wicked.engine.stage.completed` | A stage finishes successfully |
 
-Both satisfy the rules: `wicked.` prefix, three segments, past-tense verb, no
-domain or subdomain baked in. They are **semantic** — any pipeline engine
-emitting "a stage was entered" shares `wicked.stage.entered`.
+Both satisfy the rules: `wicked.` prefix, four segments, producer named in the
+domain segment, past-tense verb. *Which* stage is carried in `subdomain`
+(`lifecycle.<stage>`), never baked into a per-stage type.
 
 ### Suggested domain & subdomain
 
@@ -304,16 +307,16 @@ Metadata is nullable and not indexed. Don't put anything in metadata that subscr
 
 | Pattern | What It Matches |
 |---------|----------------|
-| `wicked.task.completed` | Exactly that event type |
-| `wicked.task.*` | One segment deep: `wicked.task.created`, `wicked.task.completed` — NOT `wicked.task.step.completed` |
-| `wicked.task.**` | One **or more** segments deep: `wicked.task.created` AND `wicked.task.step.completed` |
-| `wicked.**` | Everything under `wicked.` — every `wicked.<noun>.<verb>` event |
+| `wicked.myapp.task.completed` | Exactly that event type |
+| `wicked.myapp.task.*` | One segment deep: `wicked.myapp.task.created`, `wicked.myapp.task.completed` — NOT `wicked.myapp.task.step.completed` |
+| `wicked.myapp.task.**` | One **or more** segments deep: `wicked.myapp.task.created` AND `wicked.myapp.task.step.completed` |
+| `wicked.**` | Everything under `wicked.` — every `wicked.<domain>.<noun>.<verb>` event |
 | `*@my-plugin` | Everything from `my-plugin` |
-| `wicked.task.*@my-plugin` | Task events (one segment deep) from `my-plugin` only |
+| `wicked.myapp.task.*@my-plugin` | Task events (one segment deep) from `my-plugin` only |
 
 `*` matches exactly one segment (single-level). `**` matches one or more
-segments (multi-level). Because every event type is `wicked.<noun>.<verb>`
-(3+ segments), use `wicked.**` — not `wicked.*` — to "subscribe to everything
+segments (multi-level). Because every event type is `wicked.<domain>.<noun>.<verb>`
+(4 segments), use `wicked.**` — not `wicked.*` — to "subscribe to everything
 under `wicked`". A trailing `**` requires at least one segment after the
 prefix; it does not match the bare prefix on its own.
 

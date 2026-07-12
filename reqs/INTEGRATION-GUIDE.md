@@ -208,18 +208,19 @@ Subscribers declare a filter pattern and a cursor initialization mode.
 ### CLI registration
 
 ```bash
-# Subscribe to all test run events from any domain (single-level wildcard)
+# Subscribe to all of wicked-testing's run lifecycle events (single-level wildcard).
+# The producer is the 2nd type segment, so this filter is already scoped to `test`.
 wicked-bus register \
   --role subscriber \
   --domain my-consumer \
-  --filter 'wicked.run.*' \
+  --filter 'wicked.test.run.*' \
   --cursor-init latest
 
-# Subscribe to test run events from wicked-testing only
+# Same events, additionally pinned to the full domain via the @ column filter
 wicked-bus register \
   --role subscriber \
   --domain my-consumer \
-  --filter 'wicked.run.*@wicked-testing' \
+  --filter 'wicked.test.run.*@wicked-testing' \
   --cursor-init latest
 ```
 
@@ -239,19 +240,23 @@ Save both `subscription_id` and `cursor_id` for subsequent poll and ack calls.
 
 | Pattern | Matches | Does Not Match |
 |---------|---------|----------------|
-| `wicked.run.completed` | Exact type, any domain | `wicked.run.started` |
-| `wicked.run.*` | All run lifecycle events from **any** domain | `wicked.phase.started` |
-| `wicked.run.*@wicked-testing` | Run events from `wicked-testing` only | Run events from other domains |
-| `wicked.phase.*` | All phase events from any domain | `wicked.project.created` |
-| `wicked.memory.*@wicked-brain` | Brain memory events only | Memory events from other domains |
+| `wicked.test.run.completed` | Exact type (wicked-testing's run-completed) | `wicked.test.run.started` |
+| `wicked.test.run.*` | All of wicked-testing's run lifecycle events | `wicked.crew.phase.started` |
+| `wicked.test.run.*@wicked-testing` | Same, additionally pinned to the `wicked-testing` domain column | Run events from other domains |
+| `wicked.crew.phase.*` | All crew phase lifecycle events | `wicked.crew.project.created` |
+| `wicked.brain.memory.*@wicked-brain` | Brain memory events only | Memory events from other domains |
 | `*@wicked-garden` | Every event emitted by `wicked-garden` | Events from other domains |
 
-**Important**: event types are now **three-segment** (`wicked.<noun>.<verb>`). The `@<domain>`
-suffix is optional and scopes the filter to a specific publisher. Without `@`, the filter matches
-any domain that emits the event type.
+**Important**: event types are **four-segment** (`wicked.<domain>.<noun>.<verb>`) — the producer's
+short name is the 2nd segment, so a type filter is already producer-scoped. The `@<domain>` suffix
+matches the full-package-name `domain` column and is optional (it further pins, or scopes a `wicked.**`
+catch-all to one publisher). Because the producer now lives *inside* the type and wildcards are
+**trailing-only**, "the same noun across every producer" (e.g. every product's `run.completed`) is
+**not** a single-filter expression — subscribe per-domain, or use `wicked.**` and filter client-side.
 
-**`wicked.*`** does **NOT** work as a "match everything" wildcard — the wildcard is single-level.
-Use `*@wicked-garden` to match all events from a specific domain.
+**`wicked.*`** does **NOT** work as a "match everything" wildcard — the single-`*` wildcard is
+single-level. Use `wicked.**` (multi-level) for everything, or `*@wicked-garden` for all events from
+a specific domain.
 
 ### Cursor initialization modes
 

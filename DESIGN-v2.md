@@ -417,7 +417,7 @@ Every emit may attach a context. Within a process, context is auto-propagated to
 
 ```js
 await bus.withContext({ correlation_id: 'req-abc', session_id: 'sess-1' }, async () => {
-  await bus.emit({ event_type: 'wicked.crew.phase-started', payload: {...} });
+  await bus.emit({ event_type: 'wicked.crew.phase.started', payload: {...} });
   // child emits inside this callback inherit correlation_id, session_id,
   // and parent_event_id (most recent emit in the context chain)
 });

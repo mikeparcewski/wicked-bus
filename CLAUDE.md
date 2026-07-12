@@ -59,10 +59,10 @@ All state lives in `~/.something-wicked/wicked-bus/bus.db` (SQLite, WAL mode). O
 ### Schema
 - `lib/schema.sql` is the source of truth for all table definitions.
 - Events table uses `domain` + `subdomain` columns (NOT `source_plugin`).
-- Event type pattern: `wicked.<noun>.<past-tense-verb>` (3 dot-separated segments).
-- `domain` is the publisher identity (any unique string — package name, service name, tool name).
+- Event type pattern: `wicked.<domain>.<noun>.<past-tense-verb>` (4 dot-separated segments, per `reqs/SPEC.md` — the v1 catalog). The 2nd segment is the producer's **short** name (`test`, `crew`, `interactive`).
+- `domain` (column) is the publisher identity — the full package name (e.g. `wicked-testing`); its short form is the event_type's 2nd segment.
 - `subdomain` is the functional area within the publisher (dot-separated, e.g., `crew.phase`).
-- Where SPEC.md and DATA-DOMAIN.md conflict, SPEC.md is authoritative for code structure; DATA-DOMAIN.md is authoritative for the domain/subdomain column model.
+- Where SPEC.md and DATA-DOMAIN.md conflict, **SPEC.md is authoritative for the event-type grammar (4-segment) and code structure**; DATA-DOMAIN.md is authoritative for the `domain`/`subdomain` **column semantics** (what each column holds), not the segment count.
 
 ### Error Handling
 - Six error codes: WB-001 through WB-006.
@@ -107,7 +107,7 @@ All state lives in `~/.something-wicked/wicked-bus/bus.db` (SQLite, WAL mode). O
 ## Key Design Decisions
 
 - **domain + subdomain** over `source_plugin`: domain is publisher identity, subdomain is functional area. Decided because `source_plugin` is a bad construct — it conflates identity with a specific technology concept.
-- **Semantic event types**: `wicked.project.created` is shared across publishers. Domain scoping uses `@domain` filter suffix, not baked into the type string.
+- **Producer-scoped event types**: the v1 catalog scopes each type to its producer (`wicked.test.project.created`, `wicked.crew.project.created`) — the domain short-name is the 2nd segment. Cross-producer "same noun" queries use a type glob (`wicked.*.project.created`) or the `@domain` column filter.
 - **Two-timer TTL**: `dedup_expires_at` (24h) deletes rows, `expires_at` (72h) hides from poll. Deletion happens before invisibility by design.
 - **WB-003 detection**: uses `MIN(event_id)` from ALL rows (no WHERE on expires_at). This catches the case where a cursor is behind swept events.
 - **Fire-and-forget integration**: all integrations are non-blocking with hard timeouts (50ms Node.js, 100ms Python subprocess).

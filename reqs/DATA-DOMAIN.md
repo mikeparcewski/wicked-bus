@@ -62,7 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_events_type_domain ON events(event_type, domain);
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
 | `event_id` | INTEGER | No | Auto-increment primary key. Assigned by DB on insert; never supplied by producer. Used as cursor value — integer ordering guarantees delivery order within a topic. |
-| `event_type` | TEXT | No | Dot-separated event type. Max 64 chars. Pattern: `wicked.<noun>.<verb>` (three segments). Example: `wicked.run.completed`. Publisher identity is carried in `domain`, not in the type string. |
+| `event_type` | TEXT | No | Dot-separated event type. Max 64 chars. Pattern: `wicked.<domain>.<noun>.<verb>` (four segments). Example: `wicked.test.run.completed`. The producer's short name is the 2nd segment; the full package name is also carried in `domain`. |
 | `domain` | TEXT | No | The wicked-* domain that emitted the event. Max 64 chars. Example: `wicked-testing`, `wicked-garden`, `wicked-brain`. Used with `subdomain` to disambiguate events that share the same `event_type` (e.g. `wicked.project.created` from `wicked-testing` vs. `wicked-garden`). |
 | `subdomain` | TEXT | No | Functional area within the domain. Max 64 chars. Dot-separated. Defaults to empty string `''` when not supplied. Examples: `test.run`, `crew.phase`, `brain.memory`. Enables subscribers to filter within a domain's events without inspecting the payload. |
 | `payload` | TEXT | No | JSON text. Maximum size governed by `max_payload_bytes` config (default 1 MB). Must be a valid JSON object. |
@@ -251,13 +251,15 @@ CREATE TABLE IF NOT EXISTS events_archive (
 ### Naming Convention
 
 ```
-wicked.<noun>.<past-tense-verb>
+wicked.<domain>.<noun>.<past-tense-verb>
 ```
 
-All v1 catalog event types are **three segments**. The publisher is carried in `source_plugin`; the
-functional area within the publisher is carried in `subdomain`. Do not embed the plugin name in the
-type string — `wicked.run.completed` emitted by `wicked-testing` and `wicked.run.completed` emitted
-by a future CI plugin share the same type because they represent the same semantic event.
+All v1 catalog event types are **four segments** (per `SPEC.md`, the grammar authority). The
+producer's **short** name is the `<domain>` segment (`test`, `crew`, `interactive`); the full package
+name is carried in the `domain` column and the functional area in `subdomain`. Types are
+**producer-scoped** — `wicked.test.run.completed` (wicked-testing) and `wicked.crew.run.completed`
+(a crew run) are distinct because the producer is named in the type. Cross-producer "same noun"
+queries use a type glob (`wicked.*.run.completed`) or the `@domain` column filter.
 
 **Filter syntax**: subscribers filter on `event_type` with optional source scoping:
 
@@ -298,12 +300,12 @@ Events emitted by `wicked-garden` as crew project phases move through their life
 
 | Event Type | `subdomain` | Domain | Trigger | Required Payload Fields | Optional Payload Fields |
 |-----------|-------------|--------------|---------|------------------------|------------------------|
-| `wicked.phase.started` | `crew.phase` | `wicked-garden` | Phase transitions to in_progress | `projectId`, `phaseName`, `startedAt` | — |
-| `wicked.phase.completed` | `crew.phase` | `wicked-garden` | Phase passes its gate and is approved | `projectId`, `phaseName`, `duration_ms` | `deliverables` |
-| `wicked.phase.skipped` | `crew.phase` | `wicked-garden` | Phase skipped (condition not met or explicit skip) | `projectId`, `phaseName`, `reason` | — |
-| `wicked.phase.failed` | `crew.phase` | `wicked-garden` | Phase fails its gate | `projectId`, `phaseName`, `gateErrors` | — |
+| `wicked.crew.phase.started` | `crew.phase` | `wicked-garden` | Phase transitions to in_progress | `projectId`, `phaseName`, `startedAt` | — |
+| `wicked.crew.phase.completed` | `crew.phase` | `wicked-garden` | Phase passes its gate and is approved | `projectId`, `phaseName`, `duration_ms` | `deliverables` |
+| `wicked.crew.phase.skipped` | `crew.phase` | `wicked-garden` | Phase skipped (condition not met or explicit skip) | `projectId`, `phaseName`, `reason` | — |
+| `wicked.crew.phase.failed` | `crew.phase` | `wicked-garden` | Phase fails its gate | `projectId`, `phaseName`, `gateErrors` | — |
 
-**Wildcard**: `wicked.phase.*` — all phase lifecycle events.
+**Wildcard**: `wicked.crew.phase.*` — all phase lifecycle events.
 
 ---
 

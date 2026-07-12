@@ -41,7 +41,7 @@ sqlite3 ~/.something-wicked/wicked-bus/bus.db \
 
 ```bash
 sqlite3 ~/.something-wicked/wicked-bus/bus.db \
-  "SELECT event_id, domain, subdomain, datetime(emitted_at/1000, 'unixepoch') as time FROM events WHERE event_type = 'wicked.phase.completed' ORDER BY event_id DESC LIMIT 10;"
+  "SELECT event_id, domain, subdomain, datetime(emitted_at/1000, 'unixepoch') as time FROM events WHERE event_type = 'wicked.crew.phase.completed' ORDER BY event_id DESC LIMIT 10;"
 ```
 
 ### Events by domain
