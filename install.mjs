@@ -163,11 +163,19 @@ function stampSkillName(destSkillDir, installedName) {
   const skillMd = join(destSkillDir, "SKILL.md");
   if (!existsSync(skillMd)) return;
   const original = readFileSync(skillMd, "utf8");
-  // Only touch the frontmatter `name:` line (first match, block scalars excluded
-  // — bare names are always inline). Anchored to line start within the leading
-  // frontmatter block.
-  const rewritten = original.replace(/^name:[ \t]*\S.*$/m, `name: ${installedName}`);
-  if (rewritten !== original) writeFileSync(skillMd, rewritten);
+  // Scope the rewrite to the `name:` INSIDE the leading YAML frontmatter block
+  // (between the opening `---` and its closing `---`) — never a `name:` that
+  // appears later in the doc body (an example snippet or table row). Only an
+  // inline scalar is matched; a `|`/`>` block scalar is excluded. Uses a
+  // replacement FUNCTION so an installedName containing `$` can't be read as a
+  // `$&`/`$1` special pattern.
+  const fm = original.match(/^(---[ \t]*\r?\n)([\s\S]*?)(\r?\n---[ \t]*\r?\n?)/);
+  if (!fm) return;
+  const [, open, body, close] = fm;
+  const newBody = body.replace(/^name:[ \t]*(?![|>])\S.*$/m, () => `name: ${installedName}`);
+  if (newBody === body) return;
+  const rewritten = open + newBody + close + original.slice(fm[0].length);
+  writeFileSync(skillMd, rewritten);
 }
 
 for (const target of targets) {
