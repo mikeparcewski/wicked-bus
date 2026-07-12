@@ -17,9 +17,15 @@ export async function cmdDeregister(args, globals) {
       ? args['subscription-id']
       : null;
   const plugin = args.plugin && args.plugin !== true ? args.plugin : null;
-  // Guard `--role` with no value (args.role === true) so it isn't bound as a
-  // boolean into the SQL query (which would throw a raw driver error).
-  const role = args.role && args.role !== true ? args.role : null;
+  // `--role` with no value (args.role === true) is a usage error — fail fast
+  // rather than silently dropping the role restriction (or binding a boolean).
+  if (args.role === true) {
+    throw new WBError('WB-001', 'INVALID_EVENT_SCHEMA', {
+      message: '--role requires a value (subscriber|provider)',
+      reason: 'invalid --role',
+    });
+  }
+  const role = args.role != null ? args.role : null;
 
   // Validate args before touching the DB so a bad invocation fails fast.
   if (!subscriptionId && !plugin) {
