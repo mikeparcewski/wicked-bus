@@ -65,7 +65,7 @@ Use these consistently:
 | Wrong | Why | Correct |
 |-------|-----|---------|
 | `wicked.task.completed` | Missing the domain segment (only three) | `wicked.myapp.task.completed` |
-| `my-plugin.task.completed` | Domain baked into the type instead of the `domain` column | `wicked.myapp.task.completed` + domain=`my-plugin` |
+| `my-plugin.task.completed` | Domain baked into the type instead of the `domain` column | `wicked.myplugin.task.completed` + domain=`my-plugin` (the type's 2nd segment is the short form of the domain) |
 | `wicked.myapp.task.complete` | Not past tense | `wicked.myapp.task.completed` |
 | `task.completed` | Missing `wicked.` prefix | `wicked.myapp.task.completed` |
 | `wicked.myapp.taskCompleted` | camelCase | `wicked.myapp.task.completed` |

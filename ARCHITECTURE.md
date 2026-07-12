@@ -168,7 +168,7 @@ All errors produce structured JSON to stderr:
 
 - Single-host only — push is delivered over a local Unix socket layered on durable poll; there is **no** remote/TCP event transport
 - No authentication or access control
-- Sweep still runs in-process or via CLI (there is no separate sweep daemon)
+- No mandatory daemon: the TTL **sweep** runs in-process or via the CLI (there is no sweep daemon). **Push** delivery MAY run as an optional local daemon/process — the push-over-durable-poll daemon over a Unix socket — but durable poll works with no daemon at all
 
 Multi-level `**` wildcards, the push-over-durable-poll daemon, the dead-letter queue with operator
 replay, and monthly tiered storage all shipped in the v2 line — see the User's Guide for the current

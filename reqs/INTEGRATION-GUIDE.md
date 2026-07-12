@@ -163,16 +163,20 @@ Save the returned `subscription_id` if you need to deregister later.
 ### Programmatic registration (Node.js)
 
 ```javascript
-import { register } from 'wicked-bus';
+import { register, openDb, loadConfig } from 'wicked-bus';
 
-const result = await register({
+const db = openDb(loadConfig());
+
+// register() is synchronous and takes the db handle as its first argument.
+const result = register(db, {
+  plugin: 'my-plugin',
   role: 'provider',
-  domain: 'my-plugin',
-  events: ['wicked.myplugin.task.completed', 'wicked.myplugin.task.failed'],
-  schemaVersion: '1.0.0',
+  filter: 'wicked.myplugin.task.completed,wicked.myplugin.task.failed',
+  schema_version: '1.0.0',
 });
 
 console.log(result.subscription_id); // save for deregistration
+db.close();
 ```
 
 ### Provider manifest sidecar
