@@ -9,7 +9,7 @@ description: Pointer to the canonical wicked-bus event grammar — helps choose 
 > This skill is a pointer with examples, not a second source of truth — when
 > anything here and SPEC.md disagree about the **event-type grammar**, SPEC.md
 > wins. Scope note: SPEC.md's authority is the grammar and code structure; the
-> `domain`/`subdomain` **column semantics** follow DATA-DOMAIN.md and the
+> `domain`/`subdomain` **column semantics** follow `reqs/DATA-DOMAIN.md` and the
 > runtime schema (`lib/schema.sql`), and runtime validation is implemented in
 > `lib/validate.js` (SPEC.md's envelope examples still show the retired
 > `source_plugin` field).
@@ -78,5 +78,5 @@ reference (an id) into the producer's durable store, and TTL sweeps apply.
    payload, not baked into the type?
 4. Uncertain about validation? The implementation is `lib/validate.js`
    (WB-001 triggers); SPEC.md § "Validation Rules" documents the grammar-side
-   rules — for `domain`/`subdomain` column semantics defer to DATA-DOMAIN.md
+   rules — for `domain`/`subdomain` column semantics defer to `reqs/DATA-DOMAIN.md`
    and `lib/schema.sql`.
