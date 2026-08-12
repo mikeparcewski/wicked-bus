@@ -48,6 +48,11 @@ import {
   cas,
 } from 'wicked-bus';
 
+// The CLI subpath is a side-effect-only bin script; this locks its typing so
+// `import 'wicked-bus/cli'` never regresses to TS7016. Type-space only —
+// consumer.mts is never executed, so the CLI never actually runs.
+import 'wicked-bus/cli';
+
 import type {
   // envelope + emission
   WickedEventType,
