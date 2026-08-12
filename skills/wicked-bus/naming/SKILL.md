@@ -7,8 +7,12 @@ description: Pointer to the canonical wicked-bus event grammar — helps choose 
 
 > **Grammar authority: `reqs/SPEC.md` § "Naming Convention" (the v1 catalog).**
 > This skill is a pointer with examples, not a second source of truth — when
-> anything here and SPEC.md disagree, SPEC.md wins. Read the spec section for
-> the normative rules and the WB-001 validation triggers.
+> anything here and SPEC.md disagree about the **event-type grammar**, SPEC.md
+> wins. Scope note: SPEC.md's authority is the grammar and code structure; the
+> `domain`/`subdomain` **column semantics** follow DATA-DOMAIN.md and the
+> runtime schema (`lib/schema.sql`), and runtime validation is implemented in
+> `lib/validate.js` (SPEC.md's envelope examples still show the retired
+> `source_plugin` field).
 
 ## The grammar (from SPEC.md)
 
@@ -72,5 +76,7 @@ reference (an id) into the producer's durable store, and TTL sweeps apply.
    producer's namespace — their catalog is theirs.)
 3. Is instance identity (which stage/tenant/run) in `subdomain` or the
    payload, not baked into the type?
-4. Uncertain about validation? SPEC.md § "Validation Rules (WB-001
-   triggers)" is exhaustive.
+4. Uncertain about validation? The implementation is `lib/validate.js`
+   (WB-001 triggers); SPEC.md § "Validation Rules" documents the grammar-side
+   rules — for `domain`/`subdomain` column semantics defer to DATA-DOMAIN.md
+   and `lib/schema.sql`.
