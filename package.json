@@ -1,17 +1,25 @@
 {
   "name": "wicked-bus",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Lightweight, local-first SQLite event bus for AI agents and developer tools",
   "type": "module",
   "exports": {
     ".": {
-      "import": "./lib/index.js",
-      "require": "./lib/index.cjs"
+      "import": {
+        "types": "./lib/index.d.ts",
+        "default": "./lib/index.js"
+      },
+      "require": {
+        "types": "./lib/index.d.cts",
+        "default": "./lib/index.cjs"
+      }
     },
-    "./cli": "./commands/cli.js"
+    "./cli": "./commands/cli.js",
+    "./package.json": "./package.json"
   },
   "main": "./lib/index.cjs",
   "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "bin": {
     "wicked-bus": "./commands/cli.js",
     "wicked-bus-install": "./install.mjs"
@@ -23,7 +31,8 @@
     "postinstall": "node scripts/postinstall.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p test/types/tsconfig.json"
   },
   "dependencies": {
     "uuid": "^14.0.0"
@@ -32,8 +41,10 @@
     "better-sqlite3": ">=9.0.0"
   },
   "devDependencies": {
+    "@types/node": "^24.13.3",
     "@vitest/coverage-v8": "^4.1.4",
     "better-sqlite3": "^13.0.0",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.4"
   },
   "files": [

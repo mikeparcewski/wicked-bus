@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.3.2 — 2026-08-11
+
+### Added
+- **Hand-authored TypeScript declarations for the public API.** Every symbol the
+  package entry re-exports is now typed (`lib/*.d.ts` + `lib/index.d.cts` for the
+  CJS shim): the event envelope (`EventInput` / `EventRow`, with the canonical
+  4-segment grammar as a template-literal `WickedEventType`), cursor semantics
+  (`poll`/`ack`/`reanchorCursor`), DLQ entry shape (`DeadLetterRow`), the managed
+  and push-or-poll subscribers, causality, schema registry, tiered sweep,
+  cross-tier query, and the `cas` namespace. `types` conditions wired into the
+  `exports` map; strict downstream consumers (`tsc --noEmit`, nodenext) go
+  TS7016 → clean. A consumer-shaped typecheck fixture
+  (`test/types/consumer.mts`) gates CI and release so declarations cannot
+  silently drift from the runtime surface.
+
 ## v2.3.0 — 2026-07-12
 
 ### Added
