@@ -1,0 +1,13 @@
+{
+  "name": "wicked-bus-postgres-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Measurement spike (go/no-go): Postgres-backed bus prototype benchmarked against the SQLite wicked-bus. NOT production code.",
+  "scripts": {
+    "bench": "node bench/run-all.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.16.0"
+  }
+}
