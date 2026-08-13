@@ -109,9 +109,10 @@ describe('§14.1 fault-injection matrix — concurrency & boundary', () => {
   //   every event is observed exactly once and in order.
   // -------------------------------------------------------------------------
 
-  // Windows SQLite I/O is 3-5× slower than Linux; give the test room to breathe.
-  const T8_TIMEOUT = process.platform === 'win32' ? 60000 : 15000;
-  it('T8: concurrent poll + sweep — no gaps, ascending order, full coverage', { timeout: T8_TIMEOUT }, () => {
+  // Windows SQLite I/O is 3-5× slower than Linux; extend only on win32 so
+  // other platforms continue to inherit the global timeout from vitest.config.js.
+  const T8_OPTS = process.platform === 'win32' ? { timeout: 60000 } : {};
+  it('T8: concurrent poll + sweep — no gaps, ascending order, full coverage', T8_OPTS, () => {
     // Pre-populate live with 200 TTL'd events.
     for (let i = 1; i <= 200; i++) insertLive(db, mkEvent(i));
 
