@@ -39,8 +39,8 @@ run.
 
 wicked-bus is the **event substrate** of the [wicked-* family](https://wickedagile.com): a
 local-first stack for AI coding agents anchored by [wicked-estate](https://github.com/mikeparcewski/wicked-estate)
-(the code graph), with [wicked-core](https://github.com/mikeparcewski/wicked-core) (the runtime),
-[wicked-brain](https://github.com/mikeparcewski/wicked-brain) (memory), and
+(the code graph + memory + knowledge), with [wicked-core](https://github.com/mikeparcewski/wicked-core) (the runtime),
+[wicked-garden](https://github.com/mikeparcewski/wicked-garden) (the skill toolkit and QE domain), and
 [wicked-crew](https://github.com/mikeparcewski/wicked-crew) (the workflow governor that drives your
 coding-agent CLIs as governed workers).
 
@@ -139,7 +139,7 @@ All commands output structured JSON. Errors go to stderr with codes from the WB-
 
 ## AI CLI Skills
 
-wicked-bus ships skills for AI coding assistants (Claude, Gemini, Copilot, Codex, Cursor).
+wicked-bus ships skills for AI coding assistants (Claude Code, Codex, Antigravity, OpenCode, Cursor).
 
 ### Install skills
 
@@ -168,7 +168,7 @@ Agent ecosystems have a communication problem. Tools that should work together �
 - **Stays small as it grows**: monthly tiered storage auto-splits at 10 GB and reads across tiers transparently, so the hot working set stays fast at millions of rows. Two-timer TTL expires events automatically — no manual cleanup, no unbounded growth.
 - **Zero infrastructure**: the substrate is a single embedded SQLite file (ACID/WAL). No servers to run, no ports to manage, no network — events stay on your machine.
 - **Fire-and-forget**: producers are non-blocking. The bus never slows the caller. If it's not installed, callers degrade gracefully.
-- **Agent-native**: designed for AI coding assistants and the tools around them. Ships with skills for Claude, Gemini, Copilot, Codex, and Cursor.
+- **Agent-native**: designed for AI coding assistants and the tools around them. Ships with skills for Claude Code, Codex, Antigravity, OpenCode, and Cursor.
 
 ## Documentation
 
