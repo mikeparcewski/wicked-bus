@@ -42,12 +42,19 @@ mode, and delivered to subscribers via an explicit cursor-poll model.
 - **Fire-and-forget integration**: all integration hooks are non-blocking; the bus never slows the caller
 - **Single-host only** (v1): multi-machine fan-out is deferred to v2
 
-**Supported wicked-\* integrations** (v1):
+**Supported wicked-\* integrations**:
 | Plugin | Integration Type | Timeout |
 |--------|-----------------|---------|
-| wicked-testing | Node.js dynamic import + `Promise.race` | 50 ms |
-| wicked-garden | Python subprocess via `wicked-bus` CLI | 100 ms |
-| wicked-brain | Python subprocess via `wicked-bus` CLI | 100 ms |
+| wicked-ledger (QE evidence) | `wicked-bus` CLI via `spawnSync`, fire-and-forget | 2 s |
+| wicked-garden | Python subprocess via `wicked-bus` CLI, fire-and-forget | 5 s |
+| wicked-crew | Node.js dynamic import; durable subscriber + emitter | non-blocking |
+
+<!-- historical -->
+The v1 table listed wicked-testing (Node.js dynamic import + `Promise.race`,
+50 ms) and wicked-brain (Python subprocess, 100 ms); both products retired in
+2026-08 — their integrations live on in wicked-ledger / wicked-garden's `qe`
+domain and wicked-estate respectively.
+<!-- /historical -->
 
 ---
 
@@ -376,12 +383,14 @@ wicked.<domain>.<noun>.<past-tense-verb>
 ```
 
 - All lowercase, dot-separated
-- `<domain>`: plugin short name (`test`, `crew`, `brain`)
-- `<noun>`: entity that changed (`run`, `phase`, `memory`)
-- `<past-tense-verb>`: what happened (`completed`, `started`, `stored`)
+- `<domain>`: the producing product's short name — current live domains: `qe`, `crew`, `garden`,
+  `interactive` (`test` survives only as a legacy-stable QE-lifecycle namespace, emitted under
+  the `qe` domain column — see the catalog below)
+- `<noun>`: entity that changed (`gate`, `phase`, `project`)
+- `<past-tense-verb>`: what happened (`completed`, `started`, `passed`)
 
-All v1 catalog event types use **four segments**. Three-segment names (e.g. `wicked.test.completed`)
-are not used in v1 and should not be constructed dynamically.
+All catalog event types use **four segments**. Three-segment names (e.g. `wicked.qe.passed`)
+are not used and should not be constructed dynamically.
 
 ### Validation Rules (WB-001 triggers)
 
@@ -391,39 +400,61 @@ are not used in v1 and should not be constructed dynamically.
 - `schema_version`: if present, must match semver `/^\d+\.\d+\.\d+$/`
 - Payload size: `JSON.stringify(payload).length <= config.max_payload_bytes`
 
-### Event Catalog (v1)
+### Event Catalog
 
-#### wicked-testing Events
+> **Currency note (2026-08-29):** refreshed to the live emitters. The original
+> v1 catalog predated the wicked-testing and wicked-brain retirements (2026-08);
+> each product's own docs remain the authoritative per-event reference
+> (garden: `skills/qe/refs/integration.md`; ledger: `lib/bus-emit.mjs`).
 
-| Event Type | Trigger | Key Payload Fields |
-|-----------|---------|-------------------|
-| `wicked.test.run.started` | Test run begins | `runId`, `projectId`, `scenarioId`, `startedAt` |
-| `wicked.test.run.completed` | Test run finishes | `runId`, `projectId`, `scenarioId`, `status`, `duration_ms`, `evidencePath` |
-| `wicked.test.run.failed` | Test run errors out | `runId`, `projectId`, `error`, `duration_ms` |
-| `wicked.test.verdict.created` | Verdict recorded | `verdictId`, `runId`, `verdict`, `reviewer` |
-| `wicked.test.strategy.generated` | Test strategy generated | `projectId`, `scenarioCount` |
-| `wicked.test.scenario.created` | New scenario created | `scenarioId`, `projectId`, `name`, `format_version` |
-| `wicked.test.project.created` | New project created | `projectId`, `name` |
+#### QE events — `domain` column = `qe`
 
-#### wicked-garden Events
+Produced by wicked-garden's `qe` skill domain (gate CLI) and wicked-ledger
+(lifecycle emissions). The `wicked.test.*` lifecycle types are a **legacy-stable
+namespace** kept by decision at the wicked-testing retirement — the types kept
+their names; the `domain` stamp is `qe`.
 
 | Event Type | Trigger | Key Payload Fields |
 |-----------|---------|-------------------|
-| `wicked.crew.phase.started` | Phase begins | `projectId`, `phaseName`, `startedAt` |
-| `wicked.crew.phase.completed` | Phase completes | `projectId`, `phaseName`, `duration_ms`, `deliverables` |
-| `wicked.crew.phase.skipped` | Phase skipped | `projectId`, `phaseName`, `reason` |
-| `wicked.crew.phase.failed` | Phase fails gate | `projectId`, `phaseName`, `gateErrors` |
-| `wicked.crew.project.created` | New crew project | `projectId`, `name`, `description` |
-| `wicked.crew.project.archived` | Project archived | `projectId`, `archivedAt` |
+| `wicked.qe.gate.passed` | Acceptance gate PASS | `run_id`, `context`, `gate_verdict`, `exit_code`, `verdict_summary`, `mode`, `completed_at`, `scenario_count` |
+| `wicked.qe.gate.failed` | Acceptance gate FAIL | same 8 fields |
+| `wicked.qe.gate.conditional` | CONDITIONAL or SYSTEM_ERROR | same 8 fields |
+| `wicked.qe.deploy.completed` | Deploy signal alongside a PASS | `run_id`, `project_id` |
+| `wicked.test.strategy.generated` | Test strategy produced | `strategy_id`, `project_id`, `qe_version` |
+| `wicked.test.scenario.authored` | Scenario file created/updated | `scenario_id`, `project_id`, `format_version` |
+| `wicked.test.run.started` | Test run begins | `run_id`, `project_id`, `scenario_id`, `started_at` |
+| `wicked.test.run.completed` | Test run finishes | `run_id`, `project_id`, `scenario_id` |
+| `wicked.test.verdict.created` | Verdict recorded | `verdict_id`, `run_id`, `verdict`, `reviewer` |
+| `wicked.test.evidence.captured` | Evidence written for a run | `project_id`, `run_id`, `evidence_path`, `qe_version` |
 
-#### wicked-brain Events
+#### wicked-garden events — `domain` column = `wicked-garden`
+
+Representative set (garden's registry in `scripts/_bus.py` is exhaustive):
 
 | Event Type | Trigger | Key Payload Fields |
 |-----------|---------|-------------------|
-| `wicked.brain.memory.stored` | Memory chunk written | `chunkId`, `tier`, `tags`, `size_bytes` |
-| `wicked.brain.memory.updated` | Memory chunk updated | `chunkId`, `tier`, `tags` |
-| `wicked.brain.knowledge.updated` | Knowledge index rebuilt | `indexSize`, `chunkCount`, `duration_ms` |
-| `wicked.brain.memory.expired` | Memory chunk expired | `chunkId`, `tier` |
+| `wicked.garden.gate.decided` | Phase gate returned APPROVE / CONDITIONAL / REJECT | decision detail in payload |
+| `wicked.garden.gate.blocked` | Phase gate returned REJECT — advancement blocked | — |
+| `wicked.garden.project.created` | New garden project | `project_id` |
+| `wicked.crew.phase.transitioned` | Phase approved and advanced | `project_id`, `phase_from`, `phase_to` |
+
+#### wicked-crew / engine events
+
+| Event Type | `domain` column | Trigger |
+|-----------|-----------------|---------|
+| `wicked.crew.project.created` / `.updated` / `.archived` | `wicked-crew` | Crew project lifecycle |
+| `wicked.crew.membership.attached` / `.detached` | `wicked-crew` | Run ↔ project membership |
+| `wicked.crew.run.requested` / `.launched` | `wicked-core` | Governed run intent / launch (bus-as-truth handoff) |
+| `wicked.crew.task.dispatched` / `.completed` | `wicked-core` | Workflow unit handoff / completion (verdict in payload) |
+| `wicked.gate.eval.requested` / `.responded` | `wicked-core` | Governed evaluator bus round-trip (evaluator≠creator) |
+
+<!-- historical -->
+#### wicked-brain events (retired)
+
+wicked-brain retired into wicked-estate (2026-08, Phase 5-S7); the
+`wicked.brain.memory.*` / `wicked.brain.knowledge.*` events from the v1 catalog
+are **no longer emitted** by any live producer.
+<!-- /historical -->
 
 ### Example Wire Format
 
