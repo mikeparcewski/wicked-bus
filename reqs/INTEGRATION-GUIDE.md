@@ -1,5 +1,13 @@
 # wicked-bus Integration Guide
 
+<!-- historical-doc -->
+> **Currency note (2026-08-29):** the integration *patterns* here are current,
+> but the worked examples are the **v1 set** — they name wicked-testing and
+> wicked-brain (both retired 2026-08) as sample integrators and are preserved
+> as written. Live equivalents: wicked-garden's qe skills + wicked-ledger emit
+> the `wicked.test.*` lifecycle with `domain` stamp `qe`; wicked-estate
+> replaced brain. See `reqs/SPEC.md` §9 and `USERS_GUIDE.md`.
+
 A practical guide for plugin developers integrating with wicked-bus. This guide covers
 availability detection, fire-and-forget patterns, registration, and graceful degradation.
 

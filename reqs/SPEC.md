@@ -80,7 +80,7 @@ wicked-bus init
 ```bash
 wicked-bus emit \
   --type wicked.test.run.completed \
-  --source wicked-testing \
+  --source qe \
   --payload '{"runId":"run-abc","status":"passed","duration_ms":840}'
 # → {"event_id": 1, "idempotency_key": "550e8400-..."}
 ```
@@ -320,7 +320,7 @@ VALUES (1, unixepoch() * 1000, 'initial schema');
 |--------|------|-------------|-------|
 | `event_id` | INTEGER | PK AUTOINCREMENT | Assigned by DB; never supplied by producer |
 | `event_type` | TEXT | NOT NULL, max 128 chars | Dot-separated namespace |
-| `source_plugin` | TEXT | NOT NULL, max 64 chars | e.g. `"wicked-testing"` |
+| `source_plugin` | TEXT | NOT NULL, max 64 chars | e.g. `"wicked-crew"` |
 | `payload` | TEXT | NOT NULL | JSON text; max `max_payload_bytes` (default 1 MB) |
 | `schema_version` | TEXT | NOT NULL DEFAULT `'1.0.0'` | Semver; declared by producer |
 | `idempotency_key` | TEXT | NOT NULL UNIQUE | UUID v4; auto-generated if not supplied |
@@ -367,7 +367,7 @@ them. Events already in the log remain intact.
 |-------|------|----------|-------------|-------|
 | `event_id` | integer | Auto | AUTOINCREMENT PK | Never supplied by producer |
 | `event_type` | string | Yes | max 128 chars; pattern: `wicked.<domain>.<noun>.<verb>` | See naming convention |
-| `source_plugin` | string | Yes | max 64 chars | e.g. `"wicked-testing"` |
+| `source_plugin` | string | Yes | max 64 chars | e.g. `"wicked-crew"` |
 | `payload` | object | Yes | Valid JSON; max `max_payload_bytes` (1 MB) | Serialized as TEXT in DB |
 | `schema_version` | string | No | semver; default `"1.0.0"` | Declared by producer |
 | `idempotency_key` | string | No | UUID v4; auto-generated if omitted | UNIQUE DB constraint |
@@ -403,7 +403,7 @@ are not used and should not be constructed dynamically.
 ### Event Catalog
 
 > **Currency note (2026-08-29):** refreshed to the live emitters. The original
-> v1 catalog predated the wicked-testing and wicked-brain retirements (2026-08);
+> v1 catalog predated the wicked-testing and wicked-brain retirements (2026-08); <!-- historical -->
 > each product's own docs remain the authoritative per-event reference
 > (garden: `skills/qe/refs/integration.md`; ledger: `lib/bus-emit.mjs`).
 
@@ -411,7 +411,7 @@ are not used and should not be constructed dynamically.
 
 Produced by wicked-garden's `qe` skill domain (gate CLI) and wicked-ledger
 (lifecycle emissions). The `wicked.test.*` lifecycle types are a **legacy-stable
-namespace** kept by decision at the wicked-testing retirement — the types kept
+namespace** kept by decision at the wicked-testing retirement — the types kept <!-- historical -->
 their names; the `domain` stamp is `qe`.
 
 | Event Type | Trigger | Key Payload Fields |
@@ -498,7 +498,7 @@ A plugin registers as a provider to declare which event types it will emit.
 ```bash
 wicked-bus register \
   --role provider \
-  --plugin wicked-testing \
+  --plugin wicked-ledger \
   --events "wicked.test.run.started,wicked.test.run.completed,wicked.test.run.failed" \
   --schema-version 1.0.0
 ```
@@ -507,7 +507,7 @@ wicked-bus register \
 ```json
 {
   "subscription_id": "a1b2c3d4-...",
-  "plugin": "wicked-testing",
+  "plugin": "wicked-ledger",
   "role": "provider",
   "registered_at": 1744393800000
 }
@@ -521,7 +521,7 @@ This file is informational only (human-readable inspection). The authoritative r
 ```json
 {
   "subscription_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "plugin": "wicked-testing",
+  "plugin": "wicked-ledger",
   "role": "provider",
   "event_types": [
     "wicked.test.run.started",
@@ -860,7 +860,7 @@ wicked-bus subscribe \
 
 **stdout**: NDJSON — one JSON object per line per delivered event:
 ```
-{"event_id":42,"event_type":"wicked.test.run.completed","source_plugin":"wicked-testing",...}
+{"event_id":42,"event_type":"wicked.test.run.completed","source_plugin":"qe",...}
 {"event_id":43,"event_type":"wicked.test.run.failed",...}
 ```
 
@@ -902,7 +902,7 @@ wicked-bus status [--json]
   "providers": [
     {
       "subscription_id": "a1b2c3d4-...",
-      "plugin": "wicked-testing",
+      "plugin": "wicked-ledger",
       "event_types": ["wicked.test.run.started", "wicked.test.run.completed"]
     }
   ]
@@ -1016,7 +1016,7 @@ wicked-bus list \
 [
   {
     "subscription_id": "a1b2c3d4-...",
-    "plugin": "wicked-testing",
+    "plugin": "wicked-ledger",
     "role": "provider",
     "event_types": ["wicked.test.run.completed"],
     "schema_version": "1.0.0",
@@ -1061,6 +1061,7 @@ txn(cursorId, lastEventId, Date.now());
 
 ## 9. Integration Patterns
 
+<!-- historical: v1 integration pattern for the retired wicked-testing package (retired 2026-08, Phase 6) — kept as a record; the live QE emitters are wicked-garden's qe skills + wicked-ledger -->
 ### 9a. wicked-testing (`_emitEvent` Hook)
 
 **Integration point**: `lib/domain-store.mjs`, inside the `DomainStore` class.
@@ -1132,6 +1133,7 @@ log only fires when `DEBUG=wicked-bus` is set.
 - `import('wicked-bus')` is attempted exactly once and cached (`_wickedBusChecked` flag)
 - `Promise.race` with 50ms timeout: bus I/O never blocks test execution by more than 50ms
 - No throw, no test failure, no change in observable test output
+<!-- /historical -->
 
 ---
 
@@ -1196,6 +1198,7 @@ exceptions caught and logged as `warning`. wicked-garden never fails due to bus 
 
 ---
 
+<!-- historical: v1 integration pattern for the retired wicked-brain package (retired 2026-08, Phase 5-S7 — consolidated into wicked-estate); these events are no longer emitted -->
 ### 9c. wicked-brain (Knowledge Events)
 
 **Integration point**: wherever wicked-brain writes a new memory chunk or updates its knowledge
@@ -1240,6 +1243,7 @@ _emit_brain_event("wicked.brain.knowledge.updated", chunk_id="", tier="index",
 
 **Graceful degradation** (AC-30): subprocess timeout or exception results in a single `debug`-level
 log. No memory storage operation is affected by bus unavailability.
+<!-- /historical -->
 
 ---
 
@@ -1567,7 +1571,7 @@ must not fail on encountering extra keys in `payload` or `metadata`.
 | In-process sweep | TTL sweep runs inside CLI `subscribe` process; no background daemon | v2 |
 | No authentication | Trust-on-same-host model; all co-installed plugins can read/write | v2+ |
 | No UI/dashboard | CLI only; no event visualization UI | v2+ |
-| Python binding is subprocess-only | wicked-garden and wicked-brain use `wicked-bus` CLI subprocess; no native Python SDK | v2 |
+| Python binding is subprocess-only | wicked-garden and wicked-brain use `wicked-bus` CLI subprocess; no native Python SDK | v2 | <!-- historical -->
 
 ---
 

@@ -38,7 +38,7 @@ by design: `wicked.test.run.completed` ≠ `wicked.crew.run.completed`.
 | Field | Purpose | Rule |
 |-------|---------|------|
 | `event_type` | who + what happened (catalogued) | the 4-segment grammar above |
-| `domain` | who did it — publisher identity (the `@domain` filter column) | full package name, e.g. `wicked-testing`; its short form is the type's 2nd segment |
+| `domain` | who did it — publisher identity (the `@domain` filter column) | full package name, e.g. `wicked-crew`; its short form is the type's 2nd segment |
 | `subdomain` | where in the system — functional area | dot-separated hierarchy, e.g. `crew.phase`, `lifecycle.transform`; defaults to `''` |
 
 Identity vs catalog: *which* instance/area an event concerns belongs in
@@ -50,7 +50,7 @@ new event_type per pipeline stage — reuse one type and vary `subdomain`.
 | Proposed | Valid? | Why |
 |----------|--------|-----|
 | `wicked.crew.deployment.started` + domain=`wicked-crew` | Yes | 4 segments, short domain, past tense |
-| `wicked-testing.run.completed` | No | full package name in the type (use the short name) |
+| `wicked-crew.run.completed` | No | full package name in the type (use the short name) |
 | `wicked.run.completed` | No | 3 segments — missing the domain segment |
 | `wicked.crew.phase.start` | No | not past tense |
 | `wicked.crew.phase-started` | No | hyphen in a segment |

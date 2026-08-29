@@ -60,7 +60,7 @@ All state lives in `~/.something-wicked/wicked-bus/bus.db` (SQLite, WAL mode). O
 - `lib/schema.sql` is the source of truth for all table definitions.
 - Events table uses `domain` + `subdomain` columns (NOT `source_plugin`).
 - Event type pattern: `wicked.<domain>.<noun>.<past-tense-verb>` (4 dot-separated segments, per `reqs/SPEC.md` — the v1 catalog). The 2nd segment is the producer's **short** name (`test`, `crew`, `interactive`).
-- `domain` (column) is the publisher identity — the full package name (e.g. `wicked-testing`); its short form is the event_type's 2nd segment.
+- `domain` (column) is the publisher identity — the full package name (e.g. `wicked-crew`); its short form is the event_type's 2nd segment.
 - `subdomain` is the functional area within the publisher (dot-separated, e.g., `crew.phase`).
 - Where SPEC.md and DATA-DOMAIN.md conflict, **SPEC.md is authoritative for the event-type grammar (4-segment) and code structure**; DATA-DOMAIN.md is authoritative for the `domain`/`subdomain` **column semantics** (what each column holds), not the segment count.
 
