@@ -24,10 +24,11 @@ Built for agent ecosystems where multiple tools need to communicate without coup
 AI coding assistants, test runners, knowledge systems, deployment tools, or anything that benefits
 from durable, event-driven coordination.
 
-> **Status:** v2.3.0, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
+> **Status:** v2.3.2, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
 > (also GitHub Packages as `@mikeparcewski/wicked-bus`). Pure JavaScript/ESM — no build step, no
-> Rust. The v2 line is a layered coordination fabric where every layer is optional, with the v1
-> `emit/poll/ack/register` API preserved unchanged.
+> Rust — with hand-authored TypeScript declarations covering the entire public API. The v2 line is
+> a layered coordination fabric where every layer is optional, with the v1 `emit/poll/ack/register`
+> API preserved unchanged.
 
 > **Single-host today.** Push is over a local Unix socket (a push daemon layered on durable poll, so
 > a missed push never loses an event); there is **no remote/TCP event delivery**. Scale is vertical
@@ -49,9 +50,12 @@ coding-agent CLIs as governed workers).
 ### Install
 
 ```bash
-npm install wicked-bus
+npm install -g wicked-bus
 ```
 
+The global install puts the `wicked-bus` CLI on your PATH (a local
+`npm install wicked-bus` works for the [programmatic API](#programmatic-api),
+but does **not** expose the CLI — prefix CLI calls with `npx` in that case).
 `better-sqlite3` is a required peer dependency (compiles a native addon).
 
 ### Initialize
@@ -81,10 +85,12 @@ Streams events as NDJSON. Use `--filter` with wildcards and `@domain` scoping.
 
 ## Programmatic API
 
+Everything is exported from the package root (deep `wicked-bus/lib/...` imports
+are blocked by the `exports` map), and the whole surface ships with TypeScript
+declarations — `tsc --noEmit` under `nodenext` is clean with no `@types` package.
+
 ```javascript
-import { emit, poll, ack, register } from 'wicked-bus';
-import { loadConfig } from 'wicked-bus/lib/config.js';
-import { openDb } from 'wicked-bus/lib/db.js';
+import { emit, poll, ack, register, loadConfig, openDb } from 'wicked-bus';
 
 const config = loadConfig();
 const db = openDb(config);
@@ -144,8 +150,13 @@ wicked-bus ships skills for AI coding assistants (Claude Code, Codex, Antigravit
 ### Install skills
 
 ```bash
-npx wicked-bus-install
+npm install -g wicked-bus
+wicked-bus-install
 ```
+
+(`wicked-bus-install` is a bin of the `wicked-bus` package — there is no
+standalone `wicked-bus-install` npm package for `npx` to resolve, so install
+the package first.)
 
 Auto-detects installed CLIs and copies skills. Available skills:
 
@@ -169,6 +180,7 @@ Agent ecosystems have a communication problem. Tools that should work together �
 - **Zero infrastructure**: the substrate is a single embedded SQLite file (ACID/WAL). No servers to run, no ports to manage, no network — events stay on your machine.
 - **Fire-and-forget**: producers are non-blocking. The bus never slows the caller. If it's not installed, callers degrade gracefully.
 - **Agent-native**: designed for AI coding assistants and the tools around them. Ships with skills for Claude Code, Codex, Antigravity, OpenCode, and Cursor.
+- **Fully typed**: hand-authored TypeScript declarations for every public export — the event envelope (with the 4-segment `wicked.<domain>.<noun>.<verb>` grammar as a template-literal type), cursor semantics, DLQ shapes, subscribers, causality, and the `cas` namespace. Strict consumers (`tsc --noEmit`, `nodenext`) typecheck clean; a consumer-shaped fixture gates CI so the declarations can't drift from the runtime.
 
 ## Documentation
 

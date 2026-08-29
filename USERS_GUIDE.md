@@ -173,55 +173,83 @@ as the source of truth for current state.
 ## Gate Events: Two Distinct Gates in the Ecosystem
 
 Governance "gates" are where the wicked ecosystem signals go/stop. **There is no
-single unified `wicked.gate.*` catalog.** Two different products run two different
-gates, and they live in **separate event namespaces disambiguated by producer
-`domain`**. Subscribe to the one you actually care about — do not assume a single
-gate stream, and do not emit these names yourself unless you are one of these two
-producers.
+single unified gate-outcome catalog.** Two different kinds of gate run in the
+ecosystem, and they live in **separate event namespaces disambiguated by
+producer `domain`**. Subscribe to the one you actually care about — do not
+assume a single gate stream, and do not emit these names yourself unless you
+are one of these producers.
 
-### 1. QE acceptance gate — produced by `wicked-testing`
+### 1. QE acceptance gate — domain `qe`, produced by wicked-garden's QE pipeline
 
-The acceptance pipeline in **wicked-testing** decides whether captured evidence
-clears the quality bar. Producer `domain = wicked-testing`.
+The QE acceptance pipeline decides whether captured evidence clears the quality
+bar. The producer today is **wicked-garden's `qe` skill domain**: the gate CLI
+ships in garden's plugin catalog (`scripts/qe/lib/gate.mjs`) and the
+QE-lifecycle emissions go through **wicked-ledger**. Every QE event stamps the
+bus `domain` column with **`qe`**.
+
+<!-- historical -->
+> **Retirement note:** this wire contract was established by the retired
+> **wicked-testing** package (retired 2026-08, Phase 6). The event types and
+> the 8-field gate payload were kept **stable by decision** — only the producer
+> moved (garden's qe skills + wicked-ledger) and the `domain` stamp rebranded
+> from `wicked-testing` to `qe`. If an old integration subscribes with
+> `@wicked-testing`, it matches nothing today — use `@qe`.
+<!-- /historical -->
 
 | Event type | Emitted when |
 |------------|--------------|
 | `wicked.qe.gate.passed` | Acceptance passed — evidence meets the bar |
 | `wicked.qe.gate.failed` | Acceptance failed — evidence does not meet the bar |
-| `wicked.qe.gate.conditional` | Conditional pass — accepted with noted caveats |
-| `wicked.qe.deploy.completed` | Deploy finished after the gate cleared |
+| `wicked.qe.gate.conditional` | Conditional pass (or SYSTEM_ERROR) — accepted with noted caveats |
+| `wicked.qe.deploy.completed` | Cross-product deploy signal, emitted alongside a PASS |
+
+Gate events carry an 8-field payload: `run_id`, `context`, `gate_verdict`,
+`exit_code`, `verdict_summary`, `mode`, `completed_at`, `scenario_count`
+(`wicked.qe.deploy.completed` carries `run_id`, `project_id`).
 
 ```bash
-# Every QE acceptance-gate outcome (this namespace is unique to wicked-testing)
+# Every QE acceptance-gate outcome
 wicked-bus subscribe --filter 'wicked.qe.gate.*'
+
+# Explicit about the producer domain (the domain column is `qe`)
+wicked-bus subscribe --filter 'wicked.qe.gate.*@qe'
 ```
 
-### 2. Crew phase gate — produced by `wicked-crew`
+The reference consumer is **wicked-crew**: its daemon registers a durable
+subscriber (plugin `wicked-crew`, filter `wicked.qe.**`) and folds gate results
+into its acceptance view (`GET /runs/:id/acceptance`) — the ledger stays the
+system of record, so a lost or replayed event can never flip a verdict.
 
-The crew workflow in **wicked-crew** gates each phase transition. Producer
-`domain = wicked-crew`.
+### 2. Workflow phase gates — produced by `wicked-garden` and the crew engine
 
-| Event type | Emitted when |
-|------------|--------------|
-| `wicked.crew.gate.decided` | A phase-gate decision was issued. **This is a command** — it directs the next step rather than reporting a pass/fail outcome; the decision detail lives in the payload. |
-| `wicked.crew.gate.blocked` | A phase gate withheld approval (the "stop" signal) |
+Phase-gate decisions in governed workflows are announced under the producers'
+own domains:
+
+| Event type | Producer `domain` | Emitted when |
+|------------|-------------------|--------------|
+| `wicked.garden.gate.decided` | `wicked-garden` | A phase gate returned APPROVE, CONDITIONAL, or REJECT — the decision detail lives in the payload |
+| `wicked.garden.gate.blocked` | `wicked-garden` | A phase gate returned REJECT — phase advancement blocked (the "stop" signal) |
+| `wicked.crew.phase.transitioned` | `wicked-garden` | The coarse phase-transition fact (`phase_from` → `phase_to`) each approved transition emits |
 
 ```bash
-# Every crew phase-gate signal (this namespace is unique to wicked-crew)
-wicked-bus subscribe --filter 'wicked.crew.gate.*'
+# Every garden phase-gate signal
+wicked-bus subscribe --filter 'wicked.garden.gate.*'
+
+# Every phase transition
+wicked-bus subscribe --filter 'wicked.crew.phase.*'
 ```
 
 ### Why they are separate
 
 The two gates answer different questions — *does this evidence clear QE?* versus
-*may this crew phase advance?* — run in different products, and are **not
+*may this workflow phase advance?* — run in different products, and are **not
 interchangeable**. Keeping them in distinct namespaces (`wicked.qe.gate.*` versus
-`wicked.crew.gate.*`) means `wicked.crew.gate.*` matches only wicked-crew's phase gate and
-does **not** sweep in wicked-testing's QE gate. Add the `@domain` suffix
-(`wicked.crew.gate.*@wicked-crew`, `wicked.qe.gate.*@wicked-testing`) when you want
-to be explicit about the producer. These are the events actually emitted today;
-`wicked.gate.cleared` and a unified gate namespace are **not** real — do not
-subscribe to or emit them.
+`wicked.garden.gate.*`) means one filter never sweeps in the other gate's
+stream. Add the `@domain` suffix (`wicked.qe.gate.*@qe`,
+`wicked.garden.gate.*@wicked-garden`) when you want to be explicit about the
+producer. These are the events actually emitted today; `wicked.gate.cleared`
+and a unified gate-outcome namespace are **not** real — do not subscribe to or
+emit them.
 
 ## Payload Conventions
 
@@ -351,9 +379,9 @@ async function emitToBus(eventType, domain, subdomain, payload) {
   if (!_checked) {
     _checked = true;
     try {
-      const { emit } = await import('wicked-bus');
-      const { loadConfig } = await import('wicked-bus/lib/config.js');
-      const { openDb } = await import('wicked-bus/lib/db.js');
+      // Everything is exported from the package root — deep
+      // 'wicked-bus/lib/...' imports are blocked by the exports map.
+      const { emit, loadConfig, openDb } = await import('wicked-bus');
       const config = loadConfig();
       const db = openDb(config);
       _emit = (et, d, sd, p) => emit(db, config, {
