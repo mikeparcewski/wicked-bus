@@ -444,7 +444,8 @@ Representative set (garden's registry in `scripts/_bus.py` is exhaustive):
 |-----------|-----------------|---------|
 | `wicked.crew.project.created` / `.updated` / `.archived` | `wicked-crew` | Crew project lifecycle |
 | `wicked.crew.membership.attached` / `.detached` | `wicked-crew` | Run ↔ project membership |
-| `wicked.crew.run.requested` / `.launched` | `wicked-core` | Governed run intent / launch (bus-as-truth handoff) |
+| `wicked.crew.run.requested` | *requester's own* | Governed run intent (human CLI / scheduler / campaign) — the engine's launch poller matches by event type, not domain |
+| `wicked.crew.run.launched` | `wicked-core` | Launch confirmed by the engine (bus-as-truth handoff) |
 | `wicked.crew.task.dispatched` / `.completed` | `wicked-core` | Workflow unit handoff / completion (verdict in payload) |
 | `wicked.gate.eval.requested` / `.responded` | `wicked-core` | Governed evaluator bus round-trip (evaluator≠creator) |
 
@@ -462,14 +463,16 @@ are **no longer emitted** by any live producer.
 {
   "event_id": 42,
   "event_type": "wicked.test.run.completed",
-  "source_plugin": "wicked-testing",
+  "source_plugin": "wicked-ledger",
   "payload": {
-    "runId": "run-abc123",
-    "projectId": "proj-xyz",
-    "scenarioId": "scen-456",
+    "run_id": "run-abc123",
+    "project_id": "proj-xyz",
+    "scenario_id": "scen-456",
     "status": "passed",
-    "duration_ms": 1840,
-    "evidencePath": ".wicked-testing/runs/run-abc123"
+    "started_at": "2026-08-29T10:14:02Z",
+    "finished_at": "2026-08-29T10:14:04Z",
+    "evidence_path": ".wicked-qe/evidence/run-abc123",
+    "qe_version": "0.3.0"
   },
   "schema_version": "1.0.0",
   "idempotency_key": "550e8400-e29b-41d4-a716-446655440000",
