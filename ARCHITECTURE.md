@@ -117,8 +117,8 @@ Version tracking for future schema changes.
 |---------|--------------|
 | `wicked.test.run.completed` | `event_type = 'wicked.test.run.completed'` |
 | `wicked.test.run.*` | `event_type LIKE 'wicked.test.run.%' AND event_type NOT LIKE 'wicked.test.run.%.%'` |
-| `*@wicked-brain` | `domain = 'wicked-brain'` |
-| `wicked.test.run.*@wicked-testing` | Both type LIKE and domain = |
+| `*@wicked-garden` | `domain = 'wicked-garden'` |
+| `wicked.test.run.*@qe` | Both type LIKE and domain = |
 
 ## Two-Timer TTL
 

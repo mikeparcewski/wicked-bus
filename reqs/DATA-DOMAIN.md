@@ -1,5 +1,13 @@
 # wicked-bus Data Domain Reference
 
+<!-- historical-doc -->
+> **Currency note (2026-08-29):** this is the **v1 reference** (2026-04). Its
+> event-catalog rows and examples predate the wicked-testing and wicked-brain
+> retirements (2026-08) and are preserved as written — the `wicked.test.*`
+> types live on with `domain` stamp **`qe`** (producers: wicked-garden's qe
+> skills + wicked-ledger), and `wicked.brain.*` events are no longer emitted.
+> For the live catalog see `reqs/SPEC.md` §5 and `USERS_GUIDE.md`.
+
 This document describes the complete data model for wicked-bus: table schemas, event catalog,
 error code reference, and configuration schema.
 

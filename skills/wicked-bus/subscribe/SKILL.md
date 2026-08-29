@@ -27,10 +27,10 @@ Check that wicked-bus is initialized. If not, trigger `wicked-bus-init`.
 npx wicked-bus subscribe --filter 'wicked.run.*'
 
 # Only from a specific domain
-npx wicked-bus subscribe --filter 'wicked.run.*@wicked-testing'
+npx wicked-bus subscribe --filter 'wicked.run.*@wicked-crew'
 
 # Everything from a domain
-npx wicked-bus subscribe --filter '*@wicked-brain'
+npx wicked-bus subscribe --filter '*@wicked-garden'
 
 # Without auto-acknowledgment
 npx wicked-bus subscribe --filter 'wicked.phase.*' --no-ack
@@ -141,8 +141,8 @@ async function checkBusEvents() {
 | `wicked.test.run.*` | `wicked.test.run.<one-segment>` — single-level wildcard |
 | `wicked.test.run.**` | `wicked.test.run.<one-or-more-segments>` — multi-level wildcard |
 | `wicked.**` | Everything under `wicked.` (every `wicked.<domain>.<noun>.<verb>` event) |
-| `*@wicked-brain` | All events from the `wicked-brain` domain |
-| `wicked.brain.memory.*@wicked-brain` | Memory events (single-level) from brain only |
+| `*@wicked-garden` | All events from the `wicked-garden` domain |
+| `wicked.qe.gate.*@qe` | Gate events (single-level) from the `qe` domain only |
 
 ### Filter rules
 

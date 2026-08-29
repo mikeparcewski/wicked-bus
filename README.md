@@ -53,6 +53,9 @@ coding-agent CLIs as governed workers).
 npm install -g wicked-bus
 ```
 
+Or use the family installer — [`npx wicked-installer`](https://www.npmjs.com/package/wicked-installer)
+installs/updates the whole wicked-\* family, bus included.
+
 The global install puts the `wicked-bus` CLI on your PATH (a local
 `npm install wicked-bus` works for the [programmatic API](#programmatic-api),
 but does **not** expose the CLI — prefix CLI calls with `npx` in that case).
