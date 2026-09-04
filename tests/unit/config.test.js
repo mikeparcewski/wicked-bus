@@ -113,4 +113,96 @@ describe('config', () => {
     const content = JSON.parse(readFileSync(join(tmpDir, 'config.json'), 'utf8'));
     expect(content.ttl_hours).toBe(72);
   });
+
+  describe('interval key coercion', () => {
+    const KEYS = [
+      { key: 'sweep_interval_minutes', fallback: DEFAULTS.sweep_interval_minutes },
+      { key: 'checkpoint_interval_minutes', fallback: DEFAULTS.checkpoint_interval_minutes },
+    ];
+
+    for (const { key, fallback } of KEYS) {
+      describe(key, () => {
+        it('coerces a numeric string to a number', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: '5' }));
+          const config = loadConfig();
+          expect(config[key]).toBe(5);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it('falls back to the default on a garbage string', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: 'abc' }));
+          const config = loadConfig();
+          expect(config[key]).toBe(fallback);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it.each([NaN, Infinity, -Infinity])(
+          'falls back to the default on a non-finite numeric override',
+          (value) => {
+            const config = loadConfig({ [key]: value });
+            expect(config[key]).toBe(fallback);
+            expect(typeof config[key]).toBe('number');
+          },
+        );
+
+        it('throws on a negative number', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: -1 }));
+          expect(() => loadConfig()).toThrow(new RegExp(key));
+        });
+
+        it('throws on a negative numeric string (coerced before validation)', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: '-1' }));
+          expect(() => loadConfig()).toThrow(new RegExp(key));
+        });
+
+        it('preserves a legitimate 0 (number)', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: 0 }));
+          const config = loadConfig();
+          expect(config[key]).toBe(0);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it('preserves a legitimate "0" (string)', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: '0' }));
+          const config = loadConfig();
+          expect(config[key]).toBe(0);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it('falls back to the default on an empty string', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: '' }));
+          const config = loadConfig();
+          expect(config[key]).toBe(fallback);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it('falls back to the default on boolean true (not 1)', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: true }));
+          const config = loadConfig();
+          expect(config[key]).toBe(fallback);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it('falls back to the default on boolean false (not 0)', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ [key]: false }));
+          const config = loadConfig();
+          expect(config[key]).toBe(fallback);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it('falls back to the default when the key is absent', () => {
+          writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({}));
+          const config = loadConfig();
+          expect(config[key]).toBe(fallback);
+          expect(typeof config[key]).toBe('number');
+        });
+
+        it('falls back to the default when config.json is absent', () => {
+          const config = loadConfig();
+          expect(config[key]).toBe(fallback);
+          expect(typeof config[key]).toBe('number');
+        });
+      });
+    }
+  });
 });

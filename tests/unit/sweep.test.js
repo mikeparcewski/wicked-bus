@@ -98,6 +98,11 @@ describe('sweep', () => {
     expect(handle).toBeNull();
   });
 
+  it.each(['0', 'abc'])('startSweep rejects an unsafe raw interval value %j', (rawValue) => {
+    const handle = startSweep(db, { ...config, sweep_interval_minutes: rawValue });
+    expect(handle).toBeNull();
+  });
+
   it('startSweep returns interval handle when enabled', () => {
     const handle = startSweep(db, { ...config, sweep_interval_minutes: 1 });
     expect(handle).toBeTruthy();
