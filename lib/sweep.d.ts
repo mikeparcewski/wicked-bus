@@ -23,7 +23,9 @@ export function runSweep(
 
 /**
  * Start a background sweep interval (`config.sweep_interval_minutes`).
- * Returns the interval handle, or null when the interval is 0/unset.
+ * Returns the interval handle, or null when the interval is absent,
+ * non-finite, or not positive. Runtime checks also protect direct JavaScript
+ * callers from unsafe raw values.
  * Sweep errors inside the interval are swallowed (non-fatal).
  */
 export function startSweep(

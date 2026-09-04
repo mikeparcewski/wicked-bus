@@ -17,9 +17,17 @@ export interface BusConfig {
   ttl_hours: number;
   /** Idempotency-dedup TTL in hours (default 24). Rows past it are deleted by sweep. Must be <= ttl_hours. */
   dedup_ttl_hours: number;
-  /** Background sweep cadence in minutes (default 15). 0 disables startSweep(). */
+  /**
+   * Background sweep cadence in minutes (default 15). 0 disables startSweep().
+   * Coerced to a finite number by loadConfig(); invalid/non-numeric input
+   * (garbage string, empty string, boolean, etc.) falls back to the default.
+   */
   sweep_interval_minutes: number;
-  /** Periodic WAL-checkpoint cadence in minutes (default 5). 0 disables startCheckpoint(). */
+  /**
+   * Periodic WAL-checkpoint cadence in minutes (default 5). 0 disables
+   * startCheckpoint(). Coerced to a finite number by loadConfig(); invalid/
+   * non-numeric input falls back to the default.
+   */
   checkpoint_interval_minutes: number;
   /** When true, the v1 sweep copies rows to `events_archive` before deleting. */
   archive_mode: boolean;
@@ -54,9 +62,14 @@ export const DEFAULTS: {
  * given overrides (missing/malformed config.json is silently ignored).
  * Null/undefined override values do not clobber defaults.
  *
+ * `sweep_interval_minutes` and `checkpoint_interval_minutes` are coerced to
+ * a finite number before validation, so the returned `BusConfig` honors its
+ * declared `number` typing even when config.json holds a hand-edited string.
+ * A coerced negative (e.g. `"-1"`) still throws, same as a negative number.
+ *
  * @throws {Error} on invalid combinations (dedup_ttl_hours > ttl_hours,
- *         negative sweep interval, non-positive max_payload_bytes, or an
- *         unknown log_level).
+ *         negative sweep/checkpoint interval (after coercion), non-positive
+ *         max_payload_bytes, or an unknown log_level).
  */
 export function loadConfig(overrides?: Partial<BusConfig>): BusConfig;
 
