@@ -7,6 +7,7 @@ import { openDb } from '../lib/db.js';
 import { poll, ack, reanchorCursor } from '../lib/poll.js';
 import { register } from '../lib/register.js';
 import { startSweep } from '../lib/sweep.js';
+import { startCheckpoint } from '../lib/checkpoint.js';
 import { WBError } from '../lib/errors.js';
 
 const SUBSCRIBE_USAGE = {
@@ -227,14 +228,18 @@ export async function cmdSubscribe(args, globals) {
     return;
   }
 
-  // Start background sweep
+  // Start background sweep + periodic WAL checkpoint (bus.db-wal must not
+  // outgrow bus.db; the checkpoint handle is unref'd and cleared alongside the
+  // sweep on every teardown path below).
   const sweepHandle = startSweep(db, config);
+  const checkpointHandle = startCheckpoint(db, config);
 
   // Graceful shutdown
   let running = true;
   const shutdown = () => {
     running = false;
     if (sweepHandle) clearInterval(sweepHandle);
+    if (checkpointHandle) clearInterval(checkpointHandle);
     db.close();
     process.exit(0);
   };
@@ -272,6 +277,7 @@ export async function cmdSubscribe(args, globals) {
             message: recoveryErr.message,
           }) + '\n');
           if (sweepHandle) clearInterval(sweepHandle);
+          if (checkpointHandle) clearInterval(checkpointHandle);
           db.close();
           throw recoveryErr;
         }
@@ -287,6 +293,7 @@ export async function cmdSubscribe(args, globals) {
         // Fatal errors: WB-003 (when --on-stale fail), WB-006
         if (err.error === 'WB-003' || err.error === 'WB-006') {
           if (sweepHandle) clearInterval(sweepHandle);
+          if (checkpointHandle) clearInterval(checkpointHandle);
           db.close();
           throw err;
         }

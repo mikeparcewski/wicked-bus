@@ -44,6 +44,7 @@ declare namespace shim {
   export type LogLevel = wickedBus.LogLevel;
   // sweeps
   export type SweepResult = wickedBus.SweepResult;
+  export type CheckpointResult = wickedBus.CheckpointResult;
   export type SweepV2Config = wickedBus.SweepV2Config;
   export type SweepV2Result = wickedBus.SweepV2Result;
   export type WalCheckpointResult = wickedBus.WalCheckpointResult;

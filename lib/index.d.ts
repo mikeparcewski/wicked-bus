@@ -41,6 +41,10 @@ export { resolveDataDir, ensureDataDir, resolveDbPath } from './paths.js';
 export { startSweep, runSweep } from './sweep.js';
 export type { SweepResult } from './sweep.js';
 
+// --- Periodic WAL checkpoint (bus.db-wal must not outgrow bus.db) ---
+export { startCheckpoint, runCheckpoint } from './checkpoint.js';
+export type { CheckpointResult } from './checkpoint.js';
+
 // --- Dead-letter queue (inspect / replay / drop) ---
 export { listDeadLetters, replayDeadLetter, dropDeadLetter } from './dlq.js';
 export type {

@@ -19,6 +19,8 @@ export interface BusConfig {
   dedup_ttl_hours: number;
   /** Background sweep cadence in minutes (default 15). 0 disables startSweep(). */
   sweep_interval_minutes: number;
+  /** Periodic WAL-checkpoint cadence in minutes (default 5). 0 disables startCheckpoint(). */
+  checkpoint_interval_minutes: number;
   /** When true, the v1 sweep copies rows to `events_archive` before deleting. */
   archive_mode: boolean;
   log_level: LogLevel;
@@ -40,6 +42,7 @@ export const DEFAULTS: {
   ttl_hours: number;
   dedup_ttl_hours: number;
   sweep_interval_minutes: number;
+  checkpoint_interval_minutes: number;
   archive_mode: boolean;
   log_level: LogLevel;
   db_path: null;

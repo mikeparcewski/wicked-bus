@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Periodic WAL checkpoint — bus.db-wal must not outgrow bus.db (perf #5).** Nothing
+  TRUNCATE-checkpointed the bus database: emitters are short-lived, subscribers hold long-lived
+  read cursors, and SQLite's passive auto-checkpoints keep deferring while those readers ride the
+  WAL — observed as a `bus.db-wal` that essentially never merges. New `lib/checkpoint.js`:
+  `runCheckpoint(db)` runs a busy-tolerant PASSIVE→TRUNCATE `wal_checkpoint` on the bus's own
+  connection (busy_timeout zeroed for the attempt and restored, so a live reader defers the
+  truncate immediately — it never blocks the event loop, never throws for that);
+  `startCheckpoint(db, config)` is the sweep-shaped interval wrapper
+  (`checkpoint_interval_minutes`, default 5, `0` disables; unref'd so it never holds the process
+  open; cleared on every `cmd-subscribe` teardown path alongside the sweep). `openDb` additionally
+  applies `PRAGMA wal_autocheckpoint=512` (≈2MB) as the backstop between ticks. Exported from the
+  package entry (ESM + CJS types).
+
 ## v2.3.2 — 2026-08-11
 
 ### Added
