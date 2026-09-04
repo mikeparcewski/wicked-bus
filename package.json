@@ -1,6 +1,6 @@
 {
   "name": "wicked-bus",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Lightweight, local-first SQLite event bus for AI agents and developer tools",
   "type": "module",
   "exports": {

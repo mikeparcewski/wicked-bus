@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 2.3.3 — 2026-09-04
+
+### Fixed
+- **Interval config keys are coerced to finite numbers at `loadConfig` (#70, #71).** A hand-edited
+  `config.json` string (`"abc"`, `"0"`, `""`, a boolean) passed the `< 0` validation while
+  `BusConfig` types the keys as numbers — reaching consumers as NaN/string intervals (a 1ms
+  `setInterval` tight-loop in the worst case). Both `sweep_interval_minutes` and
+  `checkpoint_interval_minutes` now coerce before validation: numeric strings parse, a legitimate
+  `0` stays `0` (disables the timer), everything else falls back to the key's documented default;
+  negatives still throw. Consumer-side guards stay as defense in depth. Built and verified by
+  governed run 77e281ed.
+
 ### Added
 - **Periodic WAL checkpoint — bus.db-wal must not outgrow bus.db (perf #5).** Nothing
   TRUNCATE-checkpointed the bus database: emitters are short-lived, subscribers hold long-lived
