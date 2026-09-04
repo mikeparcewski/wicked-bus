@@ -73,6 +73,16 @@ describe('checkpoint', () => {
     expect(db.pragma('busy_timeout', { simple: true })).toBe(5000);
   });
 
+  it('restores a legitimate prior busy_timeout of 0 exactly', () => {
+    // A caller that deliberately runs with busy waiting disabled must get its
+    // exact value back — not openDb's 5000 (the `Number(prev) || 5000` trap).
+    db.pragma('busy_timeout = 0');
+    emitEvent();
+    runCheckpoint(db);
+    expect(db.pragma('busy_timeout', { simple: true })).toBe(0);
+    db.pragma('busy_timeout = 5000'); // restore for the shared afterEach teardown
+  });
+
   it('a concurrent reader makes the truncate defer (busy), never throw or block', () => {
     emitEvent();
 
@@ -110,6 +120,17 @@ describe('checkpoint', () => {
   it('startCheckpoint returns null when checkpoint_interval_minutes is 0', () => {
     const handle = startCheckpoint(db, { ...config, checkpoint_interval_minutes: 0 });
     expect(handle).toBeNull();
+  });
+
+  it('startCheckpoint applies the documented default when the key or config is absent', () => {
+    // Calling startCheckpoint at all is the opt-in: an absent key (a config
+    // written before this feature) or an absent config gets the default 5.
+    const noKey = startCheckpoint(db, {});
+    expect(noKey).toBeTruthy();
+    clearInterval(noKey);
+    const noConfig = startCheckpoint(db);
+    expect(noConfig).toBeTruthy();
+    clearInterval(noConfig);
   });
 
   it('startCheckpoint runs on the interval and is cleaned up by clearInterval', () => {

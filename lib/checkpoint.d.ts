@@ -29,11 +29,13 @@ export function runCheckpoint(db: SqliteDatabase): CheckpointResult;
 
 /**
  * Start a background checkpoint interval
- * (`config.checkpoint_interval_minutes`, default 5; 0 disables). Returns the
- * unref'd interval handle, or null when disabled. Errors inside the interval
- * are swallowed (non-fatal). Callers clearInterval the handle on shutdown.
+ * (`config.checkpoint_interval_minutes`, default 5; 0 disables). An absent key
+ * or absent config applies the default — calling startCheckpoint is the
+ * opt-in. Returns the unref'd interval handle, or null when disabled. Errors
+ * inside the interval are swallowed (non-fatal). Callers clearInterval the
+ * handle on shutdown.
  */
 export function startCheckpoint(
   db: SqliteDatabase,
-  config: { checkpoint_interval_minutes?: number },
+  config?: { checkpoint_interval_minutes?: number },
 ): ReturnType<typeof setInterval> | null;
