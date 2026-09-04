@@ -122,6 +122,37 @@ describe('checkpoint', () => {
     expect(handle).toBeNull();
   });
 
+  it('startCheckpoint never schedules a tight loop from malformed or tiny values', () => {
+    // A hand-edited config.json can carry strings: "0" is truthy, so without
+    // coercion it would slip past the disable check into a 0ms setInterval spin.
+    expect(startCheckpoint(db, { checkpoint_interval_minutes: '0' })).toBeNull();
+    // Non-finite garbage disables (fail safe) rather than becoming a NaN interval.
+    expect(startCheckpoint(db, { checkpoint_interval_minutes: 'abc' })).toBeNull();
+    expect(startCheckpoint(db, { checkpoint_interval_minutes: Infinity })).toBeNull();
+    // Negative disables (loadConfig rejects it earlier, but direct callers exist).
+    expect(startCheckpoint(db, { checkpoint_interval_minutes: -5 })).toBeNull();
+
+    // A tiny positive fraction is clamped to the 1s floor instead of sub-ms spin.
+    vi.useFakeTimers();
+    try {
+      emitEvent();
+      expect(walSize()).toBeGreaterThan(0);
+      const handle = startCheckpoint(db, { checkpoint_interval_minutes: 0.00001 });
+      expect(handle).toBeTruthy();
+      vi.advanceTimersByTime(500);
+      expect(walSize()).toBeGreaterThan(0); // no tick before the 1s floor
+      vi.advanceTimersByTime(600);
+      expect(walSize()).toBe(0); // first tick lands at the clamped 1s
+      clearInterval(handle);
+    } finally {
+      vi.useRealTimers();
+    }
+    // And a numeric string that means an interval still works (coercion, not rejection).
+    const strHandle = startCheckpoint(db, { checkpoint_interval_minutes: '5' });
+    expect(strHandle).toBeTruthy();
+    clearInterval(strHandle);
+  });
+
   it('startCheckpoint applies the documented default when the key or config is absent', () => {
     // Calling startCheckpoint at all is the opt-in: an absent key (a config
     // written before this feature) or an absent config gets the default 5.
