@@ -24,7 +24,7 @@ Built for agent ecosystems where multiple tools need to communicate without coup
 AI coding assistants, test runners, knowledge systems, deployment tools, or anything that benefits
 from durable, event-driven coordination.
 
-> **Status:** v2.3.2, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
+> **Status:** v2.3.3, published to npm as [`wicked-bus`](https://www.npmjs.com/package/wicked-bus)
 > (also GitHub Packages as `@mikeparcewski/wicked-bus`). Pure JavaScript/ESM — no build step, no
 > Rust — with hand-authored TypeScript declarations covering the entire public API. The v2 line is
 > a layered coordination fabric where every layer is optional, with the v1 `emit/poll/ack/register`
