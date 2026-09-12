@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added
+- **`WB-014 SUBSCRIBER_DB_UNUSABLE` — a subscriber names a dead connection instead of looping on the
+  raw driver error (wicked-crew F-E2E-021).** When `subscribe()`'s poll fails with a SQLite result that
+  means THIS handle's view of the database is gone for good — `SQLITE_CORRUPT`, `SQLITE_NOTADB`,
+  `SQLITE_IOERR*` — the loop now delivers a `WBError('WB-014', 'SUBSCRIBER_DB_UNUSABLE')` to `onError`
+  (context: `sqlite_code`, `sqlite_message`, `consecutive`, `plugin`, `subscription_id`, `cursor_id`,
+  `db_path`, `remediation`) and exposes the state on the handle as `getHealth()` (`unusable`,
+  `consecutive_unusable_polls`, `last_unusable_poll`); a later successful poll resets it. Other poll
+  errors (WB-003, WB-006, `SQLITE_BUSY`, …) are passed through unchanged, and the poll cadence is
+  unchanged — the point is that a consumer can tell "this connection is dead" from "this poll
+  failed". The ONLY safe remediation, carried in the message and `context.remediation`: **exit this
+  process WITHOUT closing its bus connections, then restart it.** Do not reopen in-process (a
+  same-library reopen inherits the ghost WAL index and fails identically) and do not `close()` the
+  affected connections — a graceful close of the LAST ghost connection takes the EXCLUSIVE lock,
+  checkpoints the ghost WAL over pages other writers already advanced, and leaves `bus.db` failing
+  `integrity_check` on disk (pinned by `tests/unit/subscribe-ghost-close-corrupts.test.js`; `process.exit`
+  without close leaves the file intact). Observed in the wild: six crew subscribers logged
+  `database disk image is malformed` every 2 s for hours after a second SQLite library in the same
+  process let an external close unlink the WAL sidecars under them. WB-014 is delivered once per poll
+  tick while the handle is unusable (the counter increments), so the consumer can rate-limit the relay.
+
 ## 2.3.3 — 2026-09-04
 
 ### Fixed

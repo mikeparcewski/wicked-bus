@@ -71,10 +71,27 @@ export interface SubscribeOptions {
   backoffMs?: number | number[];
   /** onLag callback cadence in ms, independent of polling (default 60000). */
   lagIntervalMs?: number;
-  /** Handler/poll errors. `event` is null for polling errors (WB-003/WB-006). */
+  /**
+   * Handler/poll errors. `event` is null for polling errors (WB-003/WB-006, and WB-014 when the
+   * handle's view of the db is unusable — see {@link SubscriberHealth}).
+   */
   onError?: (err: Error, event: SubscribedEvent | null) => void;
   onDeadLetter?: (event: SubscribedEvent, reason: string) => void;
   onLag?: (lag: SubscriberLag) => void;
+}
+
+/**
+ * WB-014 state: the poll loop hit a SQLite result that means THIS handle's view of the database is
+ * gone for good (`SQLITE_CORRUPT`, `SQLITE_NOTADB`, `SQLITE_IOERR*`). Re-polling cannot recover it.
+ * The only safe remediation (also carried as `context.remediation` on the WB-014 error): exit this
+ * process WITHOUT closing its bus connections, then restart it — an in-process reopen inherits the
+ * ghost WAL index, and a graceful `close()` of the last such connection checkpoints the ghost WAL into
+ * the file and corrupts it on disk. Reset by the next poll that succeeds.
+ */
+export interface SubscriberHealth {
+  unusable: boolean;
+  consecutive_unusable_polls: number;
+  last_unusable_poll: { at: number; sqlite_code: string; message: string } | null;
 }
 
 /** Handle returned by subscribe(). */
@@ -82,6 +99,7 @@ export interface SubscribeHandle {
   /** Stop the loop; resolves once any in-flight handler/backoff settles. */
   stop(): Promise<void>;
   getLag(): SubscriberLag;
+  getHealth(): SubscriberHealth;
   cursor_id: string;
   subscription_id: string;
 }

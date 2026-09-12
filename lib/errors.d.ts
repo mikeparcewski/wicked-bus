@@ -5,7 +5,7 @@
  * lib/errors.js — CI runs `npm run typecheck` so drift fails loudly.
  */
 
-/** Structured wicked-bus error code (`WB-001` … `WB-013`). */
+/** Structured wicked-bus error code (`WB-001` … `WB-014`). */
 export type WBErrorCode =
   | 'WB-001'
   | 'WB-002'
@@ -19,7 +19,8 @@ export type WBErrorCode =
   | 'WB-010'
   | 'WB-011'
   | 'WB-012'
-  | 'WB-013';
+  | 'WB-013'
+  | 'WB-014';
 
 /** Map of error code → machine-readable name. */
 export const ERROR_CODES: {
@@ -36,12 +37,13 @@ export const ERROR_CODES: {
   readonly 'WB-011': 'UI_TOKEN_PERMISSION_MISMATCH';
   readonly 'WB-012': 'LIVE_TIER_BLOAT_WARNING';
   readonly 'WB-013': 'SPILL_BUCKET_UNAVAILABLE';
+  readonly 'WB-014': 'SUBSCRIBER_DB_UNUSABLE';
 };
 
 /** Machine-readable error name (`INVALID_EVENT_SCHEMA`, `DUPLICATE_EVENT`, …). */
 export type WBErrorName = (typeof ERROR_CODES)[WBErrorCode];
 
-/** Map of error code → CLI process exit code (WB-001 → 1, … WB-013 → 13). */
+/** Map of error code → CLI process exit code (WB-001 → 1, … WB-014 → 14). */
 export const EXIT_CODES: { readonly [K in WBErrorCode]: number };
 
 /**
