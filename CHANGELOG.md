@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.3.4 — 2026-09-12
+
 ### Added
 - **`WB-014 SUBSCRIBER_DB_UNUSABLE` — a subscriber names a dead connection instead of looping on the
   raw driver error (wicked-crew F-E2E-021).** When `subscribe()`'s poll fails with a SQLite result that
