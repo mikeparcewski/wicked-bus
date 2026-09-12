@@ -94,6 +94,7 @@ import type {
   SubscriberLag,
   SubscribeOptions,
   SubscribeHandle,
+  SubscriberHealth,
   // errors
   WBErrorCode,
   WBErrorName,
@@ -302,6 +303,8 @@ async function subscribeFlow(db: SqliteDatabase): Promise<void> {
   const handle: SubscribeHandle = subscribe(options);
   expectType<string>(handle.cursor_id);
   expectType<SubscriberLag>(handle.getLag());
+  expectType<SubscriberHealth>(handle.getHealth());
+  expectType<boolean>(handle.getHealth().unusable);
   await handle.stop();
 }
 

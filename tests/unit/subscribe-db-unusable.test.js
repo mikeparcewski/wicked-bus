@@ -6,8 +6,9 @@
  * to onError with the sqlite code and a consecutive counter, expose it on getHealth(), keep the
  * cadence, pass every other poll error through unchanged, and reset once a poll succeeds again.
  *
- * The connection is driven through a Proxy so the failure is injected exactly where the daemon saw
- * it — the poll's prepare() — on a REAL better-sqlite3 handle (registration ran on the real thing).
+ * The connection is driven through a Proxy so the failure is injected where the daemon saw it — the
+ * poll tick's first prepare() (the replay drain, then poll()) — on a REAL better-sqlite3 handle
+ * (registration ran on the real thing).
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
@@ -102,7 +103,9 @@ describe('subscribe — WB-014 SUBSCRIBER_DB_UNUSABLE', () => {
       expect(err.context.cursor_id).toBe(sub.cursor_id);
       expect(err.context.db_path).toBe(db.name);
       expect(err.message).toMatch(/cannot read the bus db \(SQLITE_CORRUPT: database disk image is malformed\)/);
-      expect(err.message).toMatch(/reopen the connection/);
+      expect(err.message).toMatch(/exit this process WITHOUT closing its bus connections, then restart it/);
+      expect(err.message).not.toMatch(/reopen the connection/);
+      expect(err.context.remediation).toBe('exit this process WITHOUT closing its bus connections, then restart it');
     }
     const health = sub.getHealth();
     expect(health.unusable).toBe(true);

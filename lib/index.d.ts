@@ -61,6 +61,7 @@ export type {
   SubscriberLag,
   SubscribeOptions,
   SubscribeHandle,
+  SubscriberHealth,
 } from './subscribe.js';
 
 // --- Errors ---

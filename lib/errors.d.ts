@@ -5,7 +5,7 @@
  * lib/errors.js — CI runs `npm run typecheck` so drift fails loudly.
  */
 
-/** Structured wicked-bus error code (`WB-001` … `WB-013`). */
+/** Structured wicked-bus error code (`WB-001` … `WB-014`). */
 export type WBErrorCode =
   | 'WB-001'
   | 'WB-002'

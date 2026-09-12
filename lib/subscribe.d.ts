@@ -82,8 +82,11 @@ export interface SubscribeOptions {
 
 /**
  * WB-014 state: the poll loop hit a SQLite result that means THIS handle's view of the database is
- * gone for good (`SQLITE_CORRUPT`, `SQLITE_NOTADB`, `SQLITE_IOERR*`). Re-polling cannot recover it;
- * the owner of the connection must reopen. Reset by the next poll that succeeds.
+ * gone for good (`SQLITE_CORRUPT`, `SQLITE_NOTADB`, `SQLITE_IOERR*`). Re-polling cannot recover it.
+ * The only safe remediation (also carried as `context.remediation` on the WB-014 error): exit this
+ * process WITHOUT closing its bus connections, then restart it — an in-process reopen inherits the
+ * ghost WAL index, and a graceful `close()` of the last such connection checkpoints the ghost WAL into
+ * the file and corrupts it on disk. Reset by the next poll that succeeds.
  */
 export interface SubscriberHealth {
   unusable: boolean;
