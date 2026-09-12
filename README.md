@@ -144,7 +144,7 @@ db.close();
 | `replay` | Reset a cursor to a specific position |
 | `cleanup` | Run TTL sweep (delete expired events) |
 
-All commands output structured JSON. Errors go to stderr with codes from the WB-0xx taxonomy (WB-001 through WB-013).
+All commands output structured JSON. Errors go to stderr with codes from the WB-0xx taxonomy (WB-001 through WB-014).
 
 ## AI CLI Skills
 

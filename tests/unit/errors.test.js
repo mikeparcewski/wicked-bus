@@ -60,6 +60,11 @@ describe('ERROR_CODES', () => {
     expect(ERROR_CODES['WB-012']).toBe('LIVE_TIER_BLOAT_WARNING');
     expect(ERROR_CODES['WB-013']).toBe('SPILL_BUCKET_UNAVAILABLE');
   });
+
+  it('adds WB-014 for a subscriber whose db handle is unusable (wicked-crew F-E2E-021)', () => {
+    expect(ERROR_CODES['WB-014']).toBe('SUBSCRIBER_DB_UNUSABLE');
+    expect(EXIT_CODES['WB-014']).toBe(14);
+  });
 });
 
 describe('EXIT_CODES', () => {

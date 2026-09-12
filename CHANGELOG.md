@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+- **`WB-014 SUBSCRIBER_DB_UNUSABLE` — a subscriber names a dead connection instead of looping on the
+  raw driver error (wicked-crew F-E2E-021).** When `subscribe()`'s poll fails with a SQLite result that
+  means THIS handle's view of the database is gone for good — `SQLITE_CORRUPT`, `SQLITE_NOTADB`,
+  `SQLITE_IOERR*` — the loop now delivers a `WBError('WB-014', 'SUBSCRIBER_DB_UNUSABLE')` to `onError`
+  (context: `sqlite_code`, `sqlite_message`, `consecutive`, `plugin`, `subscription_id`, `cursor_id`,
+  `db_path`) and exposes the state on the handle as `getHealth()` (`unusable`,
+  `consecutive_unusable_polls`, `last_unusable_poll`); a later successful poll resets it. Other poll
+  errors (WB-003, WB-006, `SQLITE_BUSY`, …) are passed through unchanged, and the poll cadence is
+  unchanged — the point is that a consumer can tell "this connection is dead, reopen it" from "this
+  poll failed". Observed in the wild: six crew subscribers logged `database disk image is malformed`
+  every 2 s for hours after a second SQLite library in the same process let an external close unlink
+  the WAL sidecars under them; the handle cannot reopen a caller-owned connection (and a same-library
+  reopen inherits the ghost shm node), so it says so — once, loudly, with a counter.
+
 ## 2.3.3 — 2026-09-04
 
 ### Fixed
