@@ -74,6 +74,16 @@ export interface SubscribeOptions {
   /**
    * Handler/poll errors. `event` is null for polling errors (WB-003/WB-006, and WB-014 when the
    * handle's view of the db is unusable — see {@link SubscriberHealth}).
+   *
+   * WB-003 `CURSOR_BEHIND_TTL_WINDOW` is delivered ONCE per subscriber per sweep and is already
+   * recovered when it arrives: the loop re-anchored the cursor to the oldest surviving event
+   * (`MIN(event_id) - 1`, never the head) before reporting, so the next tick delivers every event
+   * the sweep left. Its `context` carries `reanchored_to` (the new `last_event_id`), `swept_past`
+   * (`[first, last]` — the row range the sweep removed before this subscriber acked it; how many
+   * of those matched the subscriber's filter is unknowable, and a filtered subscriber that matched
+   * nothing lands here too, having lost nothing, because cursors advance only on ack) and
+   * `remediation`. A re-anchor WRITE that fails (e.g. `SQLITE_BUSY`) reaches `onError` as its own
+   * error and the loop retries on the next tick.
    */
   onError?: (err: Error, event: SubscribedEvent | null) => void;
   onDeadLetter?: (event: SubscribedEvent, reason: string) => void;

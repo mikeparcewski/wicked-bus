@@ -179,7 +179,7 @@ Agent ecosystems have a communication problem. Tools that should work together �
 
 - **At-least-once delivery**: cursors persist across restarts and retry is restart-durable (`delivery_attempts`). Unacked events are re-delivered; events that exhaust retries land in a dead-letter queue you can inspect and replay. No lost events.
 - **Durable, idempotent, crash-safe**: emit-side idempotency and disk-full recovery mean a crash, a restart, or a full disk never corrupts or duplicates the log.
-- **Stays small as it grows**: monthly tiered storage auto-splits at 10 GB and reads across tiers transparently, so the hot working set stays fast at millions of rows. Two-timer TTL expires events automatically — no manual cleanup, no unbounded growth.
+- **Stays small as it grows**: monthly tiered storage auto-splits at 10 GB and reads across tiers transparently, so the hot working set stays fast at millions of rows. Two-timer TTL expires events automatically — no manual cleanup, no unbounded growth — and a `subscribe()` loop whose cursor fell behind a sweep re-anchors itself to the oldest surviving event (`WB-003`, reported once with `reanchored_to` / `swept_past`) instead of wedging.
 - **Zero infrastructure**: the substrate is a single embedded SQLite file (ACID/WAL). No servers to run, no ports to manage, no network — events stay on your machine.
 - **Fire-and-forget**: producers are non-blocking. The bus never slows the caller. If it's not installed, callers degrade gracefully.
 - **Agent-native**: designed for AI coding assistants and the tools around them. Ships with skills for Claude Code, Codex, Antigravity, OpenCode, and Cursor.
