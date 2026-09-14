@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Fixed
+- **A subscriber that fell behind the TTL sweep no longer wedges forever on `WB-003` — the poll loop
+  re-anchors it to the oldest surviving event and reports once (wicked-crew #445; FIX-IT-ALL L10-2).**
+  `poll()` throws `WB-003 CURSOR_BEHIND_TTL_WINDOW` once a cursor's `last_event_id` sits below
+  `MIN(event_id) - 1`; `subscribe()` re-polled the same position on every tick, so after one sweep
+  (72 h TTL, 15-min cadence) every crew subscriber that had not acked past the swept rows logged the
+  same error every 2 s and never received another event (the document "working" veil never
+  resolved). `subscribe()` is the one place holding both the handle and the cursor, so it now
+  recovers where `reanchorCursor()` (0 callers until now) always said to: on WB-003 the loop moves
+  the durable cursor to `oldest_available_event_id - 1` — the OLDEST SURVIVING event, never the
+  head, so at-least-once holds for everything the sweep left — and delivers `onError` the same
+  WB-003 ONCE per subscriber per sweep with `context.reanchored_to`, `context.swept_past`
+  (`[last_acked + 1, reanchored_to]`, the row range that is gone — how many of those rows matched
+  the subscriber's filter is unknowable; a filtered subscriber that matched nothing lands here too,
+  having lost nothing, because cursors advance only on ack) and `context.remediation`. Delivery
+  resumes on the next tick; the following ticks are silent. A failing re-anchor write
+  (`SQLITE_BUSY`) is reported to `onError` as its own error and retried on the next tick — it never
+  escapes the loop as an unhandled rejection. **Behaviour change:** a WB-003 is now recovered
+  in-loop rather than surfaced unchanged every tick; consumers that counted on the repeat see one
+  line per subscriber per sweep (crew: 7 subscribers + 2 per interactive bridge). Fatal codes
+  (`WB-014`) still take their branch first — unchanged. Pinned by
+  `tests/unit/subscribe-wb003-reanchor.test.js`.
+
 ## 2.3.4 — 2026-09-12
 
 ### Added
