@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
+
+## [2.3.5] — 2026-09-14
 
 ### Fixed
 - **A subscriber that fell behind the TTL sweep no longer wedges forever on `WB-003` — the poll loop
@@ -204,3 +206,6 @@ reactive triggers. `v2.2` — sagas, mesh contracts, static `contracts check`.
 ## v1.1.1 — prior
 
 See git history for v1.x release notes.
+
+[Unreleased]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.5...HEAD
+[2.3.5]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.4...v2.3.5
