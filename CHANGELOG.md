@@ -27,6 +27,14 @@
   (`WB-014`) still take their branch first — unchanged. Pinned by
   `tests/unit/subscribe-wb003-reanchor.test.js`.
 
+### Security
+- **Bump `vitest` and `@vitest/coverage-v8` from 4.1.10 → 4.1.11 (#81).** Resolves
+  GHSA-82fw-gwwq-j7x9 (path traversal / arbitrary file read via `@vitest/mocker` redirect
+  mock, moderate, dev-only) and, as a transitive consequence, pulls `nanoid` from 3.3.16 →
+  3.3.19, resolving GHSA-2v37-7h3g-55p8 (infinite loop on zero-size custom generator,
+  high, dev-only). Neither advisory affects the published runtime (`uuid` is the only runtime
+  ID-generation dependency; `nanoid`/`vitest` are dev-only and not included in the npm bundle).
+
 ## 2.3.4 — 2026-09-12
 
 ### Added
