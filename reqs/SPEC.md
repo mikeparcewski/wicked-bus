@@ -383,9 +383,13 @@ wicked.<domain>.<noun>.<past-tense-verb>
 ```
 
 - All lowercase, dot-separated
-- `<domain>`: the producing product's short name — current live domains: `qe`, `crew`, `garden`,
-  `interactive` (`test` survives only as a legacy-stable QE-lifecycle namespace, emitted under
-  the `qe` domain column — see the catalog below)
+- `<domain>`: the producing product's short name, or a designed namespace — current live
+  domains: `qe`, `crew`, `garden`, `interactive`, `estate` (wicked-core's governance-corpus
+  lifecycle), and `team` (wicked-core's team model on the bus, DES-TEAMING-002 §6; `domain` stamp
+  `wicked-core`, subdomain `core.team`). `test` survives only as a legacy-stable QE-lifecycle
+  namespace, emitted under the `qe` domain column. The generated catalog below is authoritative:
+  its domain tables list every declared type, and wicked-core's `gen_event_catalog.py` whitelist
+  (POL-1802) is the machine form of this list
 - `<noun>`: entity that changed (`gate`, `phase`, `project`)
 - `<past-tense-verb>`: what happened (`completed`, `started`, `passed`)
 
@@ -449,8 +453,8 @@ stamp is `qe`.
 | `wicked.crew.project.updated` | `crew:packages/crew/src/projects/events.ts` (const) | Crew project updated; `domain` stamp `wicked-crew` | project id + changed fields |
 | `wicked.crew.run.launched` | `core:src/bus.rs` (const)<br>`garden:scripts/_bus.py` (registry) | Launch confirmed by the engine (bus-as-truth handoff); `domain` stamp `wicked-core`; idempotency-keyed on the run id | `run_id`, `workflow`, `problem` |
 | `wicked.crew.run.requested` | `core:src/bus.rs` (const — **no emit seam**)<br>`garden:scripts/_bus.py` (registry) | Governed run intent (human CLI / scheduler / campaign); `domain` stamp = the requester's own — the engine's launch poller matches by event type, not domain | `workflow?`, `problem`, `args?` (payload contract in `wicked-core src/bus.rs`) |
-| `wicked.crew.task.completed` | `core:src/cli_runner.rs` (const — **no emit seam**)<br>`garden:scripts/_bus.py` (registry) | Workflow unit completion (verdict in payload); `domain` stamp `wicked-core` | run/unit ids + verdict |
-| `wicked.crew.task.dispatched` | `core:src/cli_runner.rs` (const — **no emit seam**)<br>`garden:scripts/_bus.py` (registry) | Workflow unit handoff to a governed worker; `domain` stamp `wicked-core` | run/unit ids + dispatch descriptor |
+| `wicked.crew.task.completed` | `core:src/cli_runner.rs` (const)<br>`garden:scripts/_bus.py` (registry) | Workflow unit completion (verdict in payload); `domain` stamp `wicked-core` | run/unit ids + verdict |
+| `wicked.crew.task.dispatched` | `core:src/cli_runner.rs` (const)<br>`garden:scripts/_bus.py` (registry) | Workflow unit handoff to a governed worker; `domain` stamp `wicked-core` | run/unit ids + dispatch descriptor |
 | `wicked.crew.workflow.completed` | `core:crates/wicked-apps-core/src/lib.rs` (const — **no emit seam**) | — | — |
 | `wicked.crew.workflow.started` | `core:crates/wicked-apps-core/src/lib.rs` (const — **no emit seam**) | — | — |
 
