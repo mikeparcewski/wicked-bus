@@ -56,7 +56,7 @@ new event_type per pipeline stage — reuse one type and vary `subdomain`.
 |----------|--------|-----|
 | `wicked.crew.deployment.started` + domain=`wicked-crew` | Yes | 4 segments, short domain, past tense |
 | `wicked.team.finding.raised` + domain=`wicked-core` | Yes | a designed namespace wicked-core owns and has catalogued |
-| `wicked.team.finding.raised` + domain=`wicked-crew` | No | another producer's namespace |
+| `wicked.team.finding.raised` + domain=`wicked-crew` | Accepted by the bus, but **must not** (convention) | another producer's namespace. `lib/validate.js` checks only syntax and field limits, not who owns a namespace, so nothing rejects this; the rule is a convention producers keep |
 | `wicked-crew.run.completed` | No | full package name in the type (use the short name) |
 | `wicked.run.completed` | No | 3 segments — missing the domain segment |
 | `wicked.crew.phase.start` | No | not past tense |
@@ -80,8 +80,9 @@ reference (an id) into the producer's durable store, and TTL sweeps apply.
 
 1. Does it match the SPEC.md grammar (4 segments, past tense, no hyphens)?
 2. Is the 2nd segment YOUR plugin's short name, or a designed namespace YOUR package owns
-   and has catalogued (listed under your package in SPEC.md's generated catalog)? Never emit
-   under another producer's namespace: their catalog is theirs.
+   and has catalogued (listed under your package in SPEC.md's generated catalog)? You must not
+   emit under another producer's namespace: their catalog is theirs. This is a convention; the
+   bus does not enforce it (`lib/validate.js` checks syntax only).
 3. Is instance identity (which stage/tenant/run) in `subdomain` or the
    payload, not baked into the type?
 4. Uncertain about validation? The implementation is `lib/validate.js`
