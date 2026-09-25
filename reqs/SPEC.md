@@ -383,13 +383,11 @@ wicked.<domain>.<noun>.<past-tense-verb>
 ```
 
 - All lowercase, dot-separated
-- `<domain>`: the producing product's short name, or a designed namespace — current live
-  domains: `qe`, `crew`, `garden`, `interactive`, `estate` (wicked-core's governance-corpus
-  lifecycle), and `team` (wicked-core's team model on the bus, DES-TEAMING-002 §6; `domain` stamp
-  `wicked-core`, subdomain `core.team`). `test` survives only as a legacy-stable QE-lifecycle
-  namespace, emitted under the `qe` domain column. The generated catalog below is authoritative:
-  its domain tables list every declared type, and wicked-core's `gen_event_catalog.py` whitelist
-  (POL-1802) is the machine form of this list
+- `<domain>`: the producing product's short name (e.g. `qe`, `crew`, `garden`, `interactive`), or a
+  designed namespace a producer owns and has catalogued (e.g. wicked-core's `team`, `gate` and
+  `estate`, stamped `domain=wicked-core`). These are examples only: the domain tables of the
+  generated catalog below are the exhaustive list. `test` survives only as a legacy-stable
+  QE-lifecycle namespace, emitted under the `qe` domain column.
 - `<noun>`: entity that changed (`gate`, `phase`, `project`)
 - `<past-tense-verb>`: what happened (`completed`, `started`, `passed`)
 
