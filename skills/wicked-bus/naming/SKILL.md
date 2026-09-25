@@ -23,8 +23,13 @@ wicked.<domain>.<noun>.<past-tense-verb>
 Four segments, always:
 
 1. `wicked.` prefix
-2. `<domain>` — the producing plugin's **short** name (`test`, `crew`,
-   `garden`, `interactive`)
+2. `<domain>` — the producing plugin's **short** name (`crew`, `garden`, `interactive`, …),
+   or a **designed namespace** a producer owns and has catalogued (e.g. wicked-core publishes
+   `wicked.team.*`, `wicked.gate.*` and `wicked.estate.*`). These names are examples. SPEC.md's
+   generated event catalog is authoritative for the wicked-owned domains and designed
+   namespaces: never reuse one of them for a producer that does not own it. A new external
+   producer mints its own short domain by the same grammar, e.g. `wicked.myplugin.task.completed`
+   with `domain=my-plugin` (README, USERS_GUIDE).
 3. `<noun>` — the entity that changed (`run`, `phase`, `memory`, `gate`)
 4. `<past-tense-verb>` — what happened (`completed`, `started`, `stored`,
    `failed`)
@@ -38,7 +43,7 @@ by design: `wicked.test.run.completed` ≠ `wicked.crew.run.completed`.
 | Field | Purpose | Rule |
 |-------|---------|------|
 | `event_type` | who + what happened (catalogued) | the 4-segment grammar above |
-| `domain` | who did it — publisher identity (the `@domain` filter column) | full package name, e.g. `wicked-crew`; its short form is the type's 2nd segment |
+| `domain` | who did it — publisher identity (the `@domain` filter column) | full package name, e.g. `wicked-crew`. The type's 2nd segment is its short form, or a designed namespace that package has catalogued: `wicked.team.path.started` is stamped `domain=wicked-core`, `subdomain=core.team` |
 | `subdomain` | where in the system — functional area | dot-separated hierarchy, e.g. `crew.phase`, `lifecycle.transform`; defaults to `''` |
 
 Identity vs catalog: *which* instance/area an event concerns belongs in
@@ -50,6 +55,8 @@ new event_type per pipeline stage — reuse one type and vary `subdomain`.
 | Proposed | Valid? | Why |
 |----------|--------|-----|
 | `wicked.crew.deployment.started` + domain=`wicked-crew` | Yes | 4 segments, short domain, past tense |
+| `wicked.team.finding.raised` + domain=`wicked-core` | Yes | a designed namespace wicked-core owns and has catalogued |
+| `wicked.team.finding.raised` + domain=`wicked-crew` | Accepted by the bus, but **must not** (convention) | another producer's namespace. `lib/validate.js` checks only syntax and field limits, not who owns a namespace, so nothing rejects this; the rule is a convention producers keep |
 | `wicked-crew.run.completed` | No | full package name in the type (use the short name) |
 | `wicked.run.completed` | No | 3 segments — missing the domain segment |
 | `wicked.crew.phase.start` | No | not past tense |
@@ -72,8 +79,10 @@ reference (an id) into the producer's durable store, and TTL sweeps apply.
 ## Checklist before emitting a new type
 
 1. Does it match the SPEC.md grammar (4 segments, past tense, no hyphens)?
-2. Is the 2nd segment YOUR plugin's short name? (Never emit under another
-   producer's namespace — their catalog is theirs.)
+2. Is the 2nd segment YOUR plugin's short name, or a designed namespace YOUR package owns
+   and has catalogued (listed under your package in SPEC.md's generated catalog)? You must not
+   emit under another producer's namespace: their catalog is theirs. This is a convention; the
+   bus does not enforce it (`lib/validate.js` checks syntax only).
 3. Is instance identity (which stage/tenant/run) in `subdomain` or the
    payload, not baked into the type?
 4. Uncertain about validation? The implementation is `lib/validate.js`

@@ -15,7 +15,7 @@ Every event in wicked-bus has three identity fields and a payload:
 └─────────────────────────────────────────────────────┘
 ```
 
-**event_type** is semantic -- it describes what happened, not who did it. Two different plugins can emit the same event_type if they represent the same kind of thing happening.
+**event_type** is semantic -- it describes what happened, not who did it. Two plugins you author can share an event_type in your own namespace when they represent the same kind of thing happening. The wicked-owned domains and designed namespaces listed in SPEC.md's event catalog (for example `wicked.team.*`) are the exception: only their owner emits them. The bus does not enforce this; it is a convention.
 
 **domain** is your plugin's package name. It identifies the publisher.
 
