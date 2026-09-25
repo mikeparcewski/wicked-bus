@@ -23,8 +23,10 @@ wicked.<domain>.<noun>.<past-tense-verb>
 Four segments, always:
 
 1. `wicked.` prefix
-2. `<domain>` — the producing plugin's **short** name (`test`, `crew`,
-   `garden`, `interactive`)
+2. `<domain>` — the producing plugin's **short** name, or a designed namespace. Live domains
+   mirror SPEC.md: `qe`, `crew`, `garden`, `interactive`, `estate`, `team` (wicked-core's team
+   model), plus the legacy-stable `test`. SPEC.md's generated event catalog is authoritative;
+   check it before minting a new domain.
 3. `<noun>` — the entity that changed (`run`, `phase`, `memory`, `gate`)
 4. `<past-tense-verb>` — what happened (`completed`, `started`, `stored`,
    `failed`)
