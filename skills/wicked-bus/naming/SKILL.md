@@ -25,9 +25,11 @@ Four segments, always:
 1. `wicked.` prefix
 2. `<domain>` — the producing plugin's **short** name (`crew`, `garden`, `interactive`, …),
    or a **designed namespace** a producer owns and has catalogued (e.g. wicked-core publishes
-   `wicked.team.*`, `wicked.gate.*` and `wicked.estate.*`). These names are examples only: the
-   domain tables in SPEC.md's generated event catalog are the exhaustive list. Check it before
-   minting a new domain.
+   `wicked.team.*`, `wicked.gate.*` and `wicked.estate.*`). These names are examples. SPEC.md's
+   generated event catalog is authoritative for the wicked-owned domains and designed
+   namespaces: never reuse one of them for a producer that does not own it. A new external
+   producer mints its own short domain by the same grammar, e.g. `wicked.myplugin.task.completed`
+   with `domain=my-plugin` (README, USERS_GUIDE).
 3. `<noun>` — the entity that changed (`run`, `phase`, `memory`, `gate`)
 4. `<past-tense-verb>` — what happened (`completed`, `started`, `stored`,
    `failed`)

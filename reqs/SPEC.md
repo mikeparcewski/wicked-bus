@@ -385,9 +385,12 @@ wicked.<domain>.<noun>.<past-tense-verb>
 - All lowercase, dot-separated
 - `<domain>`: the producing product's short name (e.g. `qe`, `crew`, `garden`, `interactive`), or a
   designed namespace a producer owns and has catalogued (e.g. wicked-core's `team`, `gate` and
-  `estate`, stamped `domain=wicked-core`). These are examples only: the domain tables of the
-  generated catalog below are the exhaustive list. `test` survives only as a legacy-stable
-  QE-lifecycle namespace, emitted under the `qe` domain column.
+  `estate`, stamped `domain=wicked-core`). These are examples. The generated catalog below is
+  authoritative for the wicked-owned domains and designed namespaces: a producer that does not
+  own one never emits under it. A new external producer mints its own short domain by this
+  grammar (e.g. `wicked.myplugin.task.completed` with `domain=my-plugin`; see the README).
+  `test` survives only as a legacy-stable QE-lifecycle namespace, emitted under the `qe`
+  domain column.
 - `<noun>`: entity that changed (`gate`, `phase`, `project`)
 - `<past-tense-verb>`: what happened (`completed`, `started`, `passed`)
 
