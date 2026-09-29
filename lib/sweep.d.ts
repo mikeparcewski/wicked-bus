@@ -13,8 +13,10 @@ export interface SweepResult {
 }
 
 /**
- * Run a single sweep pass: delete events past `dedup_expires_at`, copying
- * them to `events_archive` first when `config.archive_mode` is true.
+ * Run a single sweep pass: delete events past `dedup_expires_at` — the row's lifetime
+ * (`dedup_ttl_hours`, 24 h by default), not the 72 h `expires_at`, which bounds `poll()`
+ * visibility only (#85) — copying them to `events_archive` first when `config.archive_mode`
+ * is true.
  */
 export function runSweep(
   db: SqliteDatabase,
