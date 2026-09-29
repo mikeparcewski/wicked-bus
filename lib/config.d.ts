@@ -13,9 +13,20 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
  * overrides). Extra keys from config.json are merged through untouched.
  */
 export interface BusConfig {
-  /** Event visibility TTL in hours (default 72). Rows past it are hidden from poll. */
+  /**
+   * Event VISIBILITY TTL in hours (default 72), per-event overridable via `emit({ ttl_hours })`.
+   * Rows past `expires_at` are hidden from `poll()`. It does NOT bound how long a row is kept:
+   * the sweep deletes on `dedup_expires_at`, so under the defaults a row is gone 48 h before its
+   * visibility window would end, and raising `ttl_hours` alone retains nothing longer (#85).
+   */
   ttl_hours: number;
-  /** Idempotency-dedup TTL in hours (default 24). Rows past it are deleted by sweep. Must be <= ttl_hours. */
+  /**
+   * Idempotency-dedup TTL in hours (default 24) — and, because both sweep paths delete on
+   * `dedup_expires_at`, the row's actual LIFETIME: a subscriber has this long to ack before the
+   * rows it never read are removed (`WB-003`, re-anchored by `subscribe()` since 2.3.5). Deleting
+   * the row is what frees the `idempotency_key` UNIQUE slot, which `lib/dlq.js` replay depends on.
+   * Must be <= `ttl_hours`, so raising retention means raising BOTH (#85).
+   */
   dedup_ttl_hours: number;
   /**
    * Background sweep cadence in minutes (default 15). 0 disables startSweep().

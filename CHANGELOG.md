@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Fixed
+- **The retention window a row actually gets is `dedup_ttl_hours` (24 h), and the prose now says so
+  everywhere — plus the one place it told operators to do something that throws (#85).** The
+  independent review of #82 read the 2.3.5 entry's "(72 h TTL, 15-min cadence)" as the window a
+  cursor has before the sweep removes rows it never acked, and asked which timestamp the sweep keys
+  on. It keys on `dedup_expires_at`, and that is the design, not a defect: `reqs/SPEC.md:847-854`
+  and `reqs/DATA-DOMAIN.md:81-95` define the two-timer split, `lib/schema.sql:62` names "the 24h
+  `dedup_expires_at` sweep", CLAUDE.md lists it under Key Design Decisions, and `lib/dlq.js:86-89`
+  **depends** on the row being gone at 24 h so a replay's re-emission is not deduped against the
+  original — sweeping on `expires_at` would hold the `idempotency_key` UNIQUE slot for 72 h and
+  break that replay path. So the code is unchanged and the prose is corrected: `lib/config.d.ts`
+  now says `ttl_hours` bounds VISIBILITY only and retains nothing longer, `dedup_ttl_hours` is the
+  row's lifetime, and raising retention means raising both; both sweep queries
+  (`lib/sweep.js`, `lib/sweep-v2.js`), `lib/sweep.d.ts`, the `lib/config.js` validation and the
+  `lib/subscribe.js` WB-003 header name the key and why. **The operator-facing defect found on the
+  way:** `USERS_GUIDE.md`'s remedy for "Events are disappearing" was `{"dedup_ttl_hours": 168}`
+  alone, which `loadConfig()` REFUSES (`dedup_ttl_hours (168) must be <= ttl_hours (72)`) — it now
+  raises both and names the error. The WB-003 `remediation` string gained the real window ("Rows
+  live dedup_ttl_hours (24 h by default), not ttl_hours; to give a subscriber longer, raise both").
+  `tests/unit/sweep-retention-key.test.js` pins the key from six directions, including the row
+  between T+24 h and T+72 h that IS deleted, the short-`ttl_hours` row that is NOT, and the swept
+  key a DLQ replay re-emits; pointing either sweep at `expires_at` fails four of them. The 2.3.5
+  entry below is left as shipped — its parenthetical is superseded by this one.
+
 ## [2.3.5] — 2026-09-14
 
 ### Fixed

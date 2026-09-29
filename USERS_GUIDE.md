@@ -432,7 +432,9 @@ def emit_to_bus(event_type, domain, payload, timeout_ms=100):
 1. Is the bus initialized? `wicked-bus status`
 2. Does your filter match? `wicked.myapp.task.*` matches `wicked.myapp.task.completed` but not `wicked.myapp.task.step.completed` (use `wicked.myapp.task.**` for the latter, or `wicked.**` for everything)
 3. Is the `@domain` suffix correct? It must match the `domain` column exactly
-4. Are the events expired? Default visibility is 72 hours
+4. Are the events gone? The sweep DELETES rows after `dedup_ttl_hours` (24 h by default) — so a
+   25-hour-old event is already gone, whatever `ttl_hours` says. `ttl_hours` (72 h) only bounds
+   visibility while the row still exists; see "Events are disappearing" below
 5. Is your subscription deregistered? `wicked-bus list --include-deregistered`
 
 ### "I'm seeing WB-003 (cursor behind)"
@@ -447,10 +449,15 @@ To prevent this, poll frequently enough that events don't age out before you rea
 
 ### "Events are disappearing"
 
-Events are deleted by the sweep process after `dedup_expires_at` (24h by default). This is by design. If you need longer retention, adjust `dedup_ttl_hours` in your config:
+Events are deleted by the sweep process after `dedup_expires_at` (24h by default). This is by design: `dedup_ttl_hours` is the row's lifetime, and `ttl_hours` (72h) bounds `poll()` visibility only — so raising `ttl_hours` alone retains nothing longer.
+
+If you need longer retention, raise **both** — `dedup_ttl_hours` must be `<= ttl_hours` or `loadConfig()` refuses the config:
 
 ```json
 {
-  "dedup_ttl_hours": 168
+  "dedup_ttl_hours": 168,
+  "ttl_hours": 168
 }
 ```
+
+(Setting `dedup_ttl_hours` on its own to a value above `ttl_hours` throws `Invalid config: dedup_ttl_hours (168) must be <= ttl_hours (72)`.)
