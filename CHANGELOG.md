@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.3.6] — 2026-09-29
+
 ### Fixed
 - **The retention window a row actually gets is `dedup_ttl_hours` (24 h), and the prose now says so
   everywhere — plus the one place it told operators to do something that throws (#85).** The
@@ -239,5 +241,6 @@ reactive triggers. `v2.2` — sagas, mesh contracts, static `contracts check`.
 
 See git history for v1.x release notes.
 
-[Unreleased]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.5...HEAD
+[Unreleased]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.6...HEAD
+[2.3.6]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.5...v2.3.6
 [2.3.5]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.4...v2.3.5
