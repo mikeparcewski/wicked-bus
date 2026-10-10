@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [2.4.0] — 2026-10-10
+
+### Changed
+- **Retention is keyed on the event's lifetime, with an unacked policy** (FND-BUS-01, #101). The
+  sweep keys on `expires_at`. An expired event that an active cursor still owes follows
+  `unacked_policy`: `retain` (the default), `archive` or `discard`. The sweep reports what it did
+  per cursor. The dedup window is now separate from retention, and `poll()` delivers any event that
+  still exists.
+- **The tiered archive is opt-in** (FND-BUS-02, #102), via `tiered_archive` or `cleanup --tiered`.
+
+### Fixed
+- **CAS GC honours DLQ and `events_archive` references** (FND-BUS-04, #104).
+
+### Documentation
+- **The commit/ack contract is documented** (FND-BUS-03, #103).
+
 ## [2.3.6] — 2026-09-29
 
 ### Fixed
@@ -242,5 +258,6 @@ reactive triggers. `v2.2` — sagas, mesh contracts, static `contracts check`.
 See git history for v1.x release notes.
 
 [Unreleased]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.6...HEAD
+[2.4.0]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.6...v2.4.0
 [2.3.6]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.5...v2.3.6
 [2.3.5]: https://github.com/mikeparcewski/wicked-bus/compare/v2.3.4...v2.3.5
