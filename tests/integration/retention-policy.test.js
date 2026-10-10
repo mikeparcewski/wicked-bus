@@ -224,6 +224,31 @@ describe('FND-BUS retention / tiers / commit boundary / DLQ-CAS', () => {
     expect(pollResolve(db, archiveDir(tmpDir), { lastEventId: 0 }).map((r) => r.event_id)).toContain(old);
   });
 
+  it('BUS-01 cap: a tiered pass names over-cap rows past its batch as retention_cap_pending (sweep and dry-run agree)', async () => {
+    const { runSweepV2 } = await import('../../lib/sweep-v2.js');
+    const cursor = subscriber();
+    const a = emitFixture().event_id;
+    const b = emitFixture().event_id;
+    db.close();
+    fs.writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ tiered_archive: true, sweep_batch_size: 1 }));
+    // The CLI dry-run has no --now, so age the rows instead.
+    const aged = new Database(join(tmpDir, 'bus.db'));
+    aged.prepare('UPDATE events SET emitted_at = emitted_at - ?, expires_at = expires_at - ?').run(31 * DAY, 31 * DAY);
+    aged.close();
+    const dry = JSON.parse(run(['cleanup', '--dry-run'], { dataDir: tmpDir }).stdout);
+    expect(dry).toMatchObject({ events_moved: 1, unacked: { archived: 1, retained: 1 } });
+    expect(dry.unacked.cursors).toEqual([
+      expect.objectContaining({ cursor_id: cursor, oldest_event_id: a, disposition: 'archived', reason: 'retention_cap' }),
+      expect.objectContaining({ cursor_id: cursor, oldest_event_id: b, disposition: 'retained', reason: 'retention_cap_pending' }),
+    ]);
+    db = openDb(config);
+    const res = runSweepV2(db, { data_dir: tmpDir, sweep_batch_size: 1 });
+    expect(res.events_moved).toBe(1);
+    expect(res.unacked.cursors).toEqual(dry.unacked.cursors);
+    expect(rowExists(a)).toBe(false);
+    expect(rowExists(b)).toBe(true);
+  });
+
   it('BUS-01 cap: CLI cleanup --dry-run and --retention-days report the cap', () => {
     const cursor = subscriber();
     const { event_id } = emitFixture();
