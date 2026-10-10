@@ -181,6 +181,28 @@ describe('FND-BUS retention / tiers / commit boundary / DLQ-CAS', () => {
     expect(rows.map((r) => r.event_id)).toContain(event_id);
   });
 
+  it('BUS-01/02: the tiered sweep honours the policy — retain keeps owed rows live, discard drops them, archive moves them', async () => {
+    const { runSweepV2 } = await import('../../lib/sweep-v2.js');
+    const later = Date.now() + 80 * HOUR;
+    const cursor = subscriber();
+    const owed = emitFixture().event_id;
+    const unowed = emitFixture('wicked.unrelated.thing.happened').event_id;
+    const kept = runSweepV2(db, { data_dir: tmpDir, now: later });
+    expect(kept.unacked).toMatchObject({ retained: 1, cursors: [expect.objectContaining({ cursor_id: cursor, oldest_event_id: owed })] });
+    expect(rowExists(owed)).toBe(true);
+    expect(rowExists(unowed)).toBe(false);
+    const moved = runSweepV2(db, { data_dir: tmpDir, now: later, unacked_policy: 'archive' });
+    expect(moved.unacked).toMatchObject({ archived: 1 });
+    expect(rowExists(owed)).toBe(false);
+    const again = emitFixture().event_id;
+    const dropped = runSweepV2(db, { data_dir: tmpDir, now: later, unacked_policy: 'discard' });
+    expect(dropped.unacked).toMatchObject({ discarded: 1 });
+    expect(rowExists(again)).toBe(false);
+    const warm = pollResolve(db, archiveDir(tmpDir), { lastEventId: 0 }).map((r) => r.event_id);
+    expect(warm).toContain(owed);       // archived to the warm tier
+    expect(warm).not.toContain(again);  // discarded, never archived
+  });
+
   // ---------------------------------------------------------------- BUS-03
   it('BUS-03: a disk-full insert throws WB-004 and leaves no row — nothing was accepted', () => {
     const pages = db.pragma('page_count', { simple: true });
