@@ -244,7 +244,15 @@ describe('FND-BUS retention / tiers / commit boundary / DLQ-CAS', () => {
     expect(res.deleted).toBe(0);
     expect(casExists(tmpDir, sha)).toBe(true);
     expect(JSON.parse(casGet(tmpDir, sha).toString('utf8'))).toEqual({ data: 'y'.repeat(200) });
-    // Once the DLQ row is dropped, the blob is unreferenced and collectable.
+    // An in-db archive copy of the row also holds the reference.
+    db.prepare('DELETE FROM dead_letters').run();
+    runSweep(db, { ...config, archive_mode: true }); // creates events_archive
+    db.prepare(`INSERT INTO events_archive (event_id, event_type, domain, subdomain, payload, schema_version, idempotency_key,
+      emitted_at, expires_at, dedup_expires_at, payload_cas_sha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(event_id, ev.event_type, ev.domain, ev.subdomain, ev.payload, ev.schema_version, ev.idempotency_key, ev.emitted_at, ev.expires_at, ev.dedup_expires_at, sha);
+    expect(casGc({ dataDir: tmpDir, liveDb: db, grace_days: 0, now: Date.now() + 30 * 86400_000 }).deleted).toBe(0);
+    db.prepare('DELETE FROM events_archive').run();
+    // Once nothing references it, the blob is collectable.
     db.prepare('DELETE FROM dead_letters').run();
     expect(casGc({ dataDir: tmpDir, liveDb: db, grace_days: 0, now: Date.now() + 30 * 86400_000 }).deleted).toBe(1);
   });
