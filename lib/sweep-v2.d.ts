@@ -14,6 +14,8 @@ export const DEFAULT_LIVE_BLOAT_BYTES: number;
 export const DEFAULT_LIVE_BLOAT_ROWS: number;
 
 export interface SweepV2Config {
+  /** Retention for expired events an active cursor still owes (default 'retain'; #101). */
+  unacked_policy?: import('./sweep.js').UnackedPolicy;
   /** Parent dir for archive/. Defaults to WICKED_BUS_DATA_DIR. */
   data_dir?: string;
   /** Rows per batch (default 5000). */
@@ -44,6 +46,10 @@ export interface LiveTierBloatWarning {
 }
 
 export interface SweepV2Result {
+  /** Retention policy applied to expired events an active cursor still owes (#101). */
+  unacked_policy: import('./sweep.js').UnackedPolicy;
+  /** Reconciliation report; the tiered sweep never discards (`retained` or `archived`). */
+  unacked: import('./sweep.js').UnackedReport;
   events_moved: number;
   buckets_touched: string[];
   buckets_skipped_locked: string[];

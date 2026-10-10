@@ -81,8 +81,9 @@ describe('poll', () => {
     expect(events).toHaveLength(0);
   });
 
-  it('excludes expired events (expires_at < now)', () => {
-    // Emit with very short TTL
+  it('delivers an expired event that still exists (presence is visibility, #101)', () => {
+    // An event past expires_at is removed by the sweep only once no active
+    // cursor owes it; until then poll() delivers it rather than skip it.
     emit(db, config, {
       event_type: 'wicked.test.run.completed',
       domain: 'wicked-testing',
@@ -91,7 +92,7 @@ describe('poll', () => {
     });
     const reg = registerSub();
     const events = poll(db, reg.cursor_id);
-    expect(events).toHaveLength(0);
+    expect(events).toHaveLength(1);
   });
 
   it('throws WB-006 for non-existent cursor', () => {

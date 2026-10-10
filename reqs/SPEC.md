@@ -845,13 +845,13 @@ Every event row carries two independent expiry timestamps:
 
 | Column | Formula | Config Key | Default | Purpose |
 |--------|---------|-----------|---------|---------|
-| `expires_at` | `emitted_at + (ttl_hours * 3_600_000)` | `ttl_hours` | 72h | **Visibility filter**: events past this time are excluded from poll results |
-| `dedup_expires_at` | `emitted_at + (dedup_ttl_hours * 3_600_000)` | `dedup_ttl_hours` | 24h | **Row deletion trigger**: sweep deletes rows past this time, freeing the `idempotency_key` UNIQUE slot |
+| `expires_at` | `emitted_at + (ttl_hours * 3_600_000)` | `ttl_hours` | 72h | **Lifetime**: the only sweep key. An expired event an active cursor still owes follows `unacked_policy` (`retain` default / `archive` / `discard`) |
+| `dedup_expires_at` | `emitted_at + (dedup_ttl_hours * 3_600_000)` | `dedup_ttl_hours` | 24h | **Idempotency window**: a reused key is WB-002 until this time; afterwards emit releases the key from the still-living row |
 
-**Critical**: with defaults `dedup_ttl_hours=24` and `ttl_hours=72`, rows are **deleted at T+24h**
-even though they would have become invisible at T+72h. A subscriber whose cursor is older than 24h
-will receive `WB-003 CURSOR_BEHIND_TTL_WINDOW` because the rows no longer exist — not because
-`expires_at` was exceeded.
+**Amended 2026-10 (FND-BUS-01, wicked-bus#101):** the sweep used to delete rows at
+`dedup_expires_at` (T+24h), dropping events an offline consumer never acked. It now keys on
+`expires_at`, never sweeps an owed event under the default `retain` policy, reports what it
+retained/archived/discarded per cursor, and `poll()` no longer filters on `expires_at`.
 
 Config validation must enforce `dedup_ttl_hours <= ttl_hours`.
 

@@ -31,7 +31,7 @@ describe('event lifecycle: emit -> TTL -> sweep -> re-emit (AC-10)', () => {
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
   });
 
-  it('after sweep removes row, same idempotency_key can be reused', () => {
+  it('after the dedup window passes, the same idempotency_key can be reused (row still alive, #101)', () => {
     const key = randomUUID();
 
     // Emit event
@@ -46,9 +46,10 @@ describe('event lifecycle: emit -> TTL -> sweep -> re-emit (AC-10)', () => {
     db.prepare('UPDATE events SET dedup_expires_at = ? WHERE idempotency_key = ?')
       .run(Date.now() - 1000, key);
 
-    // Sweep should delete it
+    // The sweep keys on expires_at (72 h), so the row survives — dedup is a
+    // separate window (FND-BUS-01).
     const sweepResult = runSweep(db, config);
-    expect(sweepResult.events_deleted).toBe(1);
+    expect(sweepResult.events_deleted).toBe(0);
 
     // Re-emit with same key should succeed
     const result = emit(db, config, {

@@ -42,6 +42,18 @@ export interface BusConfig {
   checkpoint_interval_minutes: number;
   /** When true, the v1 sweep copies rows to `events_archive` before deleting. */
   archive_mode: boolean;
+  /**
+   * What the sweep does with an expired event an active cursor has not acked
+   * (FND-BUS-01, #101): 'retain' (default — never swept, still delivered),
+   * 'archive' (copied to `events_archive`, then deleted) or 'discard'.
+   */
+  unacked_policy: 'retain' | 'archive' | 'discard';
+  /**
+   * Run the monthly warm-bucket tier (lib/sweep-v2.js) from `wicked-bus
+   * cleanup` and the background sweep instead of the in-db v1 sweep
+   * (FND-BUS-02, #102). Default false.
+   */
+  tiered_archive: boolean;
   log_level: LogLevel;
   /** Explicit database file path; null resolves to `<dataDir>/bus.db`. */
   db_path: string | null;
@@ -63,6 +75,8 @@ export const DEFAULTS: {
   sweep_interval_minutes: number;
   checkpoint_interval_minutes: number;
   archive_mode: boolean;
+  unacked_policy: 'retain';
+  tiered_archive: boolean;
   log_level: LogLevel;
   db_path: null;
   max_payload_bytes: number;

@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_cursors_active
 
 -- dead_letters: events that exhausted retries for a specific cursor.
 -- Physically separate from events so poll()'s WB-003 MIN(event_id) check stays
--- correct. Denormalized so rows survive the 24h dedup_expires_at sweep of the
+-- correct. Denormalized so rows survive the TTL sweep of the
 -- originating event. No automatic TTL — operator-managed via dlq subcommands.
 CREATE TABLE IF NOT EXISTS dead_letters (
     dl_id                 INTEGER PRIMARY KEY AUTOINCREMENT,

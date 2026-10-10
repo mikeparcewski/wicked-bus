@@ -28,6 +28,7 @@ import {
   resolveDbPath,
   startSweep,
   runSweep,
+  runConfiguredSweep,
   listDeadLetters,
   replayDeadLetter,
   dropDeadLetter,
@@ -240,6 +241,13 @@ function pollFlow(db: SqliteDatabase): void {
 function sweepFlow(db: SqliteDatabase, config: BusConfig): void {
   const r1: SweepResult = runSweep(db, config);
   expectType<number>(r1.events_deleted);
+  expectType<'retain' | 'archive' | 'discard'>(r1.unacked_policy);
+  expectType<number | undefined>(r1.unacked.retained);
+  expectType<string>(r1.unacked.cursors[0]!.cursor_id);
+  expectType<'retain' | 'archive' | 'discard'>(config.unacked_policy);
+  expectType<boolean>(config.tiered_archive);
+  const rc = runConfiguredSweep(db, config);
+  expectType<string>(rc.unacked_policy);
 
   const handle = startSweep(db, config);
   if (handle !== null) clearInterval(handle);

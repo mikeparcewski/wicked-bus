@@ -32,7 +32,7 @@ describe('sweep', () => {
   });
 
   function emitExpiredEvent() {
-    // Insert event with dedup_expires_at in the past
+    // Insert an event past its lifetime (expires_at) — and so past its dedup window
     const now = Date.now();
     db.prepare(`
       INSERT INTO events (event_type, domain, payload, schema_version,
@@ -45,12 +45,12 @@ describe('sweep', () => {
       '1.0.0',
       randomUUID(),
       now - 100_000,
-      now + 100_000, // expires_at still in future
-      now - 1, // dedup_expires_at in the past
+      now - 1, // expires_at in the past (the sweep key, #101)
+      now - 2, // dedup_expires_at in the past
     );
   }
 
-  it('deletes events where dedup_expires_at < now', () => {
+  it('deletes events where expires_at < now (no cursor owes them)', () => {
     emitExpiredEvent();
     const before = db.prepare('SELECT COUNT(*) as c FROM events').get().c;
     expect(before).toBe(1);
@@ -62,7 +62,7 @@ describe('sweep', () => {
     expect(after).toBe(0);
   });
 
-  it('does not delete events where dedup_expires_at >= now', () => {
+  it('does not delete events whose lifetime has not ended', () => {
     emit(db, config, {
       event_type: 'wicked.test.run.completed',
       domain: 'wicked-testing',

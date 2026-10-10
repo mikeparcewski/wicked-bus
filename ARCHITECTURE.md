@@ -55,7 +55,7 @@ The append-only event log.
 | `idempotency_key` | TEXT UNIQUE | UUID v4 for deduplication |
 | `emitted_at` | INTEGER | Unix epoch ms |
 | `expires_at` | INTEGER | Visibility cutoff (emitted_at + 72h default) |
-| `dedup_expires_at` | INTEGER | Row deletion cutoff (emitted_at + 24h default) |
+| `dedup_expires_at` | INTEGER | Idempotency window end (emitted_at + 24h default); not a deletion key |
 | `metadata` | TEXT | Optional JSON |
 
 Indexes on: `event_type`, `domain`, `subdomain`, `(event_type, domain)`, `emitted_at`, `expires_at`, `dedup_expires_at`.
@@ -120,17 +120,20 @@ Version tracking for future schema changes.
 | `*@wicked-garden` | `domain = 'wicked-garden'` |
 | `wicked.test.run.*@qe` | Both type LIKE and domain = |
 
-## Two-Timer TTL
-
-Events have two expiry timestamps:
+## Retention and dedup (two timers, one meaning each)
 
 ```
 emit ──────── dedup_expires_at (24h) ──────── expires_at (72h)
                │                                │
-               └─ Row is deleted by sweep        └─ Row is invisible to poll
+               └─ key may be reused (emit        └─ event may be swept — unless an active
+                  releases it from the row)         cursor still owes it (unacked_policy)
 ```
 
-With defaults, deletion happens at 24h but invisibility at 72h -- meaning rows are deleted before they become invisible. This is intentional: the dedup window is shorter than the visibility window.
+The sweep (v1 and tiered) keys only on `expires_at`. An expired event an active cursor whose filter
+matches has not acked, or that has pending `delivery_attempts`, is retained by default
+(`unacked_policy: retain`), archived, or discarded, and the sweep result reports it per cursor.
+`poll()` has no expiry filter, so a retained event is still delivered. (Before 2.4 the sweep
+deleted on `dedup_expires_at`, dropping unacked events after 24 h — FND-BUS-01, #101.)
 
 ## Cross-Platform
 

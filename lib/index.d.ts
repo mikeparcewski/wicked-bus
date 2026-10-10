@@ -38,8 +38,8 @@ export type { BusConfig, LogLevel } from './config.js';
 export { resolveDataDir, ensureDataDir, resolveDbPath } from './paths.js';
 
 // --- v1 TTL sweep ---
-export { startSweep, runSweep } from './sweep.js';
-export type { SweepResult } from './sweep.js';
+export { startSweep, runSweep, runConfiguredSweep, UNACKED_POLICIES } from './sweep.js';
+export type { SweepResult, SweepConfig, UnackedPolicy, UnackedReport, UnackedCursorReport } from './sweep.js';
 
 // --- Periodic WAL checkpoint (bus.db-wal must not outgrow bus.db) ---
 export { startCheckpoint, runCheckpoint } from './checkpoint.js';
