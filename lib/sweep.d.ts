@@ -1,5 +1,6 @@
 /**
- * Type declarations for lib/sweep.js — v1 TTL sweep.
+ * Type declarations for lib/sweep.js — v1 TTL sweep + the retention policy
+ * shared with the tiered sweep (FND-BUS-01, #101).
  *
  * Hand-authored against the runtime module. Keep in lockstep with
  * lib/sweep.js — CI runs `npm run typecheck` so drift fails loudly.
@@ -7,30 +8,92 @@
 
 import type { SqliteDatabase } from './db.js';
 
-/** Result of a single sweep pass. */
-export interface SweepResult {
-  events_deleted: number;
+/** What the sweep does with an expired event an active cursor still owes. */
+export type UnackedPolicy = 'retain' | 'archive' | 'discard';
+
+/** The accepted `unacked_policy` values, in documentation order. */
+export const UNACKED_POLICIES: readonly UnackedPolicy[];
+
+/** Validate `config.unacked_policy` (default 'retain'); throws on an unknown value. */
+export function resolveUnackedPolicy(config: { unacked_policy?: string } | null | undefined): UnackedPolicy;
+
+/** Per-cursor line of the reconciliation report. */
+export interface UnackedCursorReport {
+  cursor_id: string;
+  /** Expired events this cursor owed at sweep time. */
+  count: number;
+  oldest_event_id: number;
+  newest_event_id: number;
+  disposition: 'retained' | 'archived' | 'discarded';
 }
 
 /**
- * Run a single sweep pass: delete events past `dedup_expires_at` — the row's lifetime
- * (`dedup_ttl_hours`, 24 h by default), not the 72 h `expires_at`, which bounds `poll()`
- * visibility only (#85) — copying them to `events_archive` first when `config.archive_mode`
- * is true.
+ * Reconciliation report: expired events an active cursor had not acked (or
+ * that had pending delivery_attempts), and what the sweep did with them. The
+ * single count key is the disposition — `retained`, `archived` or `discarded`.
  */
-export function runSweep(
-  db: SqliteDatabase,
-  config: { archive_mode?: boolean },
-): SweepResult;
+export interface UnackedReport {
+  retained?: number;
+  archived?: number;
+  discarded?: number;
+  cursors: UnackedCursorReport[];
+}
+
+/** Result of a single sweep pass. */
+export interface SweepResult {
+  events_deleted: number;
+  unacked_policy: UnackedPolicy;
+  unacked: UnackedReport;
+}
+
+/** Sweep config subset read by runSweep(). */
+export interface SweepConfig {
+  /** Copy every swept row to `events_archive` first. */
+  archive_mode?: boolean;
+  /** Default 'retain': an owed expired event is never swept. */
+  unacked_policy?: UnackedPolicy;
+  /** Run the tiered sweep (lib/sweep-v2.js) from runConfiguredSweep/startSweep. */
+  tiered_archive?: boolean;
+  /** Test override for "now" (epoch ms). */
+  now?: number;
+}
 
 /**
- * Start a background sweep interval (`config.sweep_interval_minutes`).
- * Returns the interval handle, or null when the interval is absent,
- * non-finite, or not positive. Runtime checks also protect direct JavaScript
- * callers from unsafe raw values.
+ * Fill the connection's `temp._wb_owed(event_id, cursor_id)` table with every
+ * expired event an active consumer still owes and return the per-cursor
+ * summary (without `disposition`). Read-only on bus.db itself.
+ */
+export function collectOwedExpired(
+  db: SqliteDatabase,
+  now: number,
+): Array<Omit<UnackedCursorReport, 'disposition'>>;
+
+/**
+ * Run a single sweep pass. An event is removed only after its lifetime
+ * (`expires_at`, `ttl_hours`); the dedup window (`dedup_expires_at`) no longer
+ * deletes rows. Expired events an active cursor still owes follow
+ * `unacked_policy` and are reported in `unacked`. `archive_mode` copies every
+ * swept row to `events_archive` first.
+ */
+export function runSweep(db: SqliteDatabase, config: SweepConfig): SweepResult;
+
+/**
+ * One pass of the configured tier: runSweepV2 when `config.tiered_archive`,
+ * else runSweep. This is what `wicked-bus cleanup` and the background sweep run.
+ */
+export function runConfiguredSweep(
+  db: SqliteDatabase,
+  config: SweepConfig & Record<string, unknown>,
+): SweepResult | import('./sweep-v2.js').SweepV2Result;
+
+/**
+ * Start a background sweep interval (`config.sweep_interval_minutes`) running
+ * runConfiguredSweep(). Returns the interval handle, or null when the interval
+ * is absent, non-finite, or not positive. Runtime checks also protect direct
+ * JavaScript callers from unsafe raw values.
  * Sweep errors inside the interval are swallowed (non-fatal).
  */
 export function startSweep(
   db: SqliteDatabase,
-  config: { sweep_interval_minutes?: number; archive_mode?: boolean },
+  config: SweepConfig & { sweep_interval_minutes?: number },
 ): ReturnType<typeof setInterval> | null;

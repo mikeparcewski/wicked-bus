@@ -10,9 +10,11 @@ __      _(_) ___| | _____  __| |     | |__  _   _ ___
 **The durable coordination fabric for AI agents and developer tools.**
 
 At-least-once delivery with restart-durable retry (`delivery_attempts`), a dead-letter queue with
-operator replay, emit-side idempotency, and disk-full recovery — no event is lost on a crash, a
-restart, a full disk, or a missed push. Monthly tiered storage auto-splits at 10 GB and reads across
-tiers transparently, so the hot working set stays small as history grows to millions of rows. Large
+operator replay, emit-side idempotency, and disk-full recovery — no *accepted* event is lost on a
+crash, a restart or a missed push, and the sweep never drops an event a consumer has not acked
+unless you choose that policy (see [Delivery and retention contract](#delivery-and-retention-contract)).
+Opt-in monthly tiered storage (`tiered_archive: true`) auto-splits at 10 GB and reads across tiers
+transparently, so the hot working set stays small as history grows to millions of rows. Large
 payloads go to a content-addressed store; causality/lineage tracing, a schema registry, and a
 WB-0xx error taxonomy round it out.
 
@@ -142,7 +144,7 @@ db.close();
 | `list` | List registrations |
 | `ack` | Acknowledge events (advance cursor) |
 | `replay` | Reset a cursor to a specific position |
-| `cleanup` | Run TTL sweep (delete expired events) |
+| `cleanup` | Run the TTL sweep: `--dry-run`, `--archive`, `--tiered`, `--unacked-policy retain\|archive\|discard`; prints the reconciliation report |
 
 All commands output structured JSON. Errors go to stderr with codes from the WB-0xx taxonomy (WB-001 through WB-014).
 
@@ -177,11 +179,43 @@ Auto-detects installed CLIs and copies skills. Available skills:
 
 Agent ecosystems have a communication problem. Tools that should work together — test runners, code reviewers, knowledge systems, deployment pipelines — end up tightly coupled or completely siloed. wicked-bus solves this with a durable local event fabric that guarantees delivery without asking you to run anything.
 
-- **At-least-once delivery**: cursors persist across restarts and retry is restart-durable (`delivery_attempts`). Unacked events are re-delivered; events that exhaust retries land in a dead-letter queue you can inspect and replay. No lost events.
-- **Durable, idempotent, crash-safe**: emit-side idempotency and disk-full recovery mean a crash, a restart, or a full disk never corrupts or duplicates the log.
-- **Stays small as it grows**: monthly tiered storage auto-splits at 10 GB and reads across tiers transparently, so the hot working set stays fast at millions of rows. Two-timer TTL expires events automatically — no manual cleanup, no unbounded growth — and a `subscribe()` loop whose cursor fell behind a sweep re-anchors itself to the oldest surviving event (`WB-003`, reported once with `reanchored_to` / `swept_past`) instead of wedging.
+- **At-least-once delivery**: cursors persist across restarts and retry is restart-durable (`delivery_attempts`). Unacked events are re-delivered — and, by default, never swept while a registered cursor still owes them; events that exhaust retries land in a dead-letter queue you can inspect and replay.
+- **Durable, idempotent, crash-safe**: emit-side idempotency and disk-full recovery mean a crash, a restart, or a full disk never corrupts or duplicates the log. A rejected emit (e.g. WB-004 on a full disk) was never accepted — see the contract below.
+- **Stays small as it grows**: opt-in monthly tiered storage (`tiered_archive: true` / `cleanup --tiered`) auto-splits at 10 GB and reads across tiers transparently, so the hot working set stays fast at millions of rows. The TTL sweep expires events automatically once nobody owes them — no manual cleanup, no unbounded growth — and a `subscribe()` loop whose cursor fell behind a sweep re-anchors itself to the oldest surviving event (`WB-003`, reported once with `reanchored_to` / `swept_past`) instead of wedging.
 - **Zero infrastructure**: the substrate is a single embedded SQLite file (ACID/WAL). No servers to run, no ports to manage, no network — events stay on your machine.
-- **Fire-and-forget**: producers are non-blocking. The bus never slows the caller. If it's not installed, callers degrade gracefully.
+- **Fire-and-forget**: producers never wait on consumers or on the push daemon; `emit()` itself is a synchronous local SQLite write. If the bus is not installed, callers degrade gracefully.
+
+## Delivery and retention contract
+
+What "durable" means here, precisely (FND-BUS-01/02/03):
+
+- **Accepted = committed.** An event is accepted when `emit()` returns an `event_id`: the INSERT
+  committed to the WAL. A thrown `emit()` (WB-004 disk full, WB-001 validation, WB-002 duplicate)
+  means **nothing was accepted and nothing is retained for later** — the producer still owns the
+  event. Disk-full recovery protects the *database* (integrity check, no corruption), not the
+  rejected event: a producer whose notification matters must treat a throw as "not published" and
+  reconcile from its own canonical record (or retry).
+- **Delivery is at-least-once for accepted events.** A cursor advances only on `ack`; a handler
+  side effect before the ack can repeat after a crash, so handlers must be idempotent.
+- **Lifetime is `ttl_hours`** (`expires_at`, 72 h default, per-event overridable). The sweep never
+  removes an event before it, and `poll()` delivers every event that still exists.
+- **Unacked events are never swept by default.** An expired event that an active cursor whose
+  filter matches has not acked (or that has pending retries) follows `unacked_policy`:
+  `retain` (default — kept and still delivered), `archive` (copied to `events_archive`, then
+  deleted) or `discard`. Every sweep returns a reconciliation report
+  (`unacked: { retained|archived|discarded, cursors: [{cursor_id, count, oldest_event_id, …}] }`),
+  so a loss is always named, never silent. Under `retain` an abandoned-but-registered cursor holds
+  its backlog — deregister it (`wicked-bus deregister`) or choose `archive`/`discard`.
+- **Dedup is a separate window** (`dedup_ttl_hours`, 24 h default): within it a reused
+  `idempotency_key` is WB-002; after it the key is released from the still-living row and the new
+  event is accepted.
+- **Tiers are opt-in.** The default `cleanup` / background sweep is in-database
+  (`archive_mode: true` keeps swept rows in `events_archive`). Monthly warm buckets
+  (`archive/bus-YYYY-MM.db`, auto-split at 10 GB, read transparently by `pollResolve`) run when
+  config sets `tiered_archive: true` or you pass `wicked-bus cleanup --tiered`.
+- **Large payloads in CAS stay reachable from the DLQ.** CAS GC counts `$cas` references held by
+  `dead_letters` snapshots, so a dead-lettered event stays replayable after its original row is
+  swept.
 - **Agent-native**: designed for AI coding assistants and the tools around them. Ships with skills for Claude Code, Codex, Antigravity, OpenCode, and Cursor.
 - **Fully typed**: hand-authored TypeScript declarations for every public export — the event envelope (with the 4-segment `wicked.<domain>.<noun>.<verb>` grammar as a template-literal type), cursor semantics, DLQ shapes, subscribers, causality, and the `cas` namespace. Strict consumers (`tsc --noEmit`, `nodenext`) typecheck clean; a consumer-shaped fixture gates CI so the declarations can't drift from the runtime.
 

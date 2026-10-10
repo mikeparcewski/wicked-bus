@@ -353,8 +353,8 @@ prefix; it does not match the bare prefix on its own.
 - **At-least-once**: if you don't ack, you'll get the event again next poll
 - **Ordered**: events arrive in `event_id` order (insertion order)
 - **Cursor-based**: your position is tracked per-subscriber, survives restarts
-- **Visibility window**: events older than `expires_at` (72h default) are invisible
-- **Sweep**: events are deleted after `dedup_expires_at` (24h default)
+- **Lifetime**: an event lives until `expires_at` (72h default); `poll()` delivers anything that still exists
+- **Sweep**: removes expired events nobody owes; an expired event an active cursor has not acked follows `unacked_policy` (`retain` default — kept and delivered; `archive`; `discard`) and is listed in the sweep's `unacked` report
 
 ### What "At-Least-Once" Means for You
 
@@ -432,9 +432,9 @@ def emit_to_bus(event_type, domain, payload, timeout_ms=100):
 1. Is the bus initialized? `wicked-bus status`
 2. Does your filter match? `wicked.myapp.task.*` matches `wicked.myapp.task.completed` but not `wicked.myapp.task.step.completed` (use `wicked.myapp.task.**` for the latter, or `wicked.**` for everything)
 3. Is the `@domain` suffix correct? It must match the `domain` column exactly
-4. Are the events gone? The sweep DELETES rows after `dedup_ttl_hours` (24 h by default) — so a
-   25-hour-old event is already gone, whatever `ttl_hours` says. `ttl_hours` (72 h) only bounds
-   visibility while the row still exists; see "Events are disappearing" below
+4. Are the events gone? The sweep removes an event only after `ttl_hours` (72 h by default), and
+   under the default `unacked_policy: retain` never while your active cursor still owes it; see
+   "Events are disappearing" below
 5. Is your subscription deregistered? `wicked-bus list --include-deregistered`
 
 ### "I'm seeing WB-003 (cursor behind)"
@@ -449,15 +449,15 @@ To prevent this, poll frequently enough that events don't age out before you rea
 
 ### "Events are disappearing"
 
-Events are deleted by the sweep process after `dedup_expires_at` (24h by default). This is by design: `dedup_ttl_hours` is the row's lifetime, and `ttl_hours` (72h) bounds `poll()` visibility only — so raising `ttl_hours` alone retains nothing longer.
+Events are removed by the sweep after `expires_at` (`ttl_hours`, 72h by default) once no active cursor owes them. An expired event a registered cursor has not acked is kept under the default `unacked_policy: "retain"`; with `"archive"` it is copied to `events_archive` first, with `"discard"` it is deleted — and either way `wicked-bus cleanup` (and every sweep result) names it in the `unacked` report, per cursor.
 
-If you need longer retention, raise **both** — `dedup_ttl_hours` must be `<= ttl_hours` or `loadConfig()` refuses the config:
+If you need longer retention for events nobody owes, raise `ttl_hours`. `dedup_ttl_hours` is only the idempotency window and must be `<= ttl_hours`:
 
 ```json
 {
-  "dedup_ttl_hours": 168,
-  "ttl_hours": 168
+  "ttl_hours": 168,
+  "unacked_policy": "retain"
 }
 ```
 
-(Setting `dedup_ttl_hours` on its own to a value above `ttl_hours` throws `Invalid config: dedup_ttl_hours (168) must be <= ttl_hours (72)`.)
+(Setting `dedup_ttl_hours` above `ttl_hours` throws `Invalid config: dedup_ttl_hours (168) must be <= ttl_hours (72)`.)

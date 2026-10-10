@@ -119,7 +119,7 @@ npx wicked-bus replay --cursor-id {cursor_id} --event-id {latest_event_id}
 
 ### "Events seem to disappear"
 
-Events are deleted by the sweep process after `dedup_expires_at` (default 24h).
+Events are removed by the sweep after `expires_at` (`ttl_hours`, default 72h) once no active cursor owes them; owed expired events follow `unacked_policy` (default `retain`) and are listed in the sweep's `unacked` report.
 Check your sweep configuration:
 
 ```bash

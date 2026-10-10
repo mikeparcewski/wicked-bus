@@ -75,17 +75,19 @@ CREATE INDEX IF NOT EXISTS idx_events_type_domain ON events(event_type, domain);
 | `subdomain` | TEXT | No | Functional area within the domain. Max 64 chars. Dot-separated. Defaults to empty string `''` when not supplied. Examples: `test.run`, `crew.phase`, `brain.memory`. Enables subscribers to filter within a domain's events without inspecting the payload. |
 | `payload` | TEXT | No | JSON text. Maximum size governed by `max_payload_bytes` config (default 1 MB). Must be a valid JSON object. |
 | `schema_version` | TEXT | No | Semver string declaring the producer's payload schema. Default `"1.0.0"`. v1 bus accepts `1.x`; major >= 2 triggers WB-005. |
-| `idempotency_key` | TEXT | No | UUID v4 string. Auto-generated if not supplied by producer. UNIQUE constraint enforces deduplication at DB level. Row exists as long as `dedup_expires_at` is in the future. |
+| `idempotency_key` | TEXT | No | UUID v4 string. Auto-generated if not supplied by producer. UNIQUE constraint enforces deduplication at DB level while `dedup_expires_at` is in the future; afterwards emit releases the key (suffixing it on the old row) so it can be reused. |
 | `emitted_at` | INTEGER | No | Unix epoch milliseconds. Set by wicked-bus at write time. |
-| `expires_at` | INTEGER | No | Unix epoch milliseconds. `emitted_at + (ttl_hours * 3_600_000)`. **Visibility filter**: events past this timestamp are excluded from subscriber poll results. The row still exists until `dedup_expires_at`. |
-| `dedup_expires_at` | INTEGER | No | Unix epoch milliseconds. `emitted_at + (dedup_ttl_hours * 3_600_000)`. **Row deletion trigger**: the background sweep deletes rows where `dedup_expires_at < now()`. This frees the `idempotency_key` UNIQUE slot. Default: `emitted_at + 24h`. |
+| `expires_at` | INTEGER | No | Unix epoch milliseconds. `emitted_at + (ttl_hours * 3_600_000)`. **Lifetime**: the sweep removes the row after this timestamp unless an active cursor still owes it (`unacked_policy`). `poll()` does not filter on it. |
+| `dedup_expires_at` | INTEGER | No | Unix epoch milliseconds. `emitted_at + (dedup_ttl_hours * 3_600_000)`. **Idempotency window**: a reused key is WB-002 until this time. Not a deletion key. Default: `emitted_at + 24h`. |
 | `metadata` | TEXT | Yes | Nullable JSON text. Arbitrary producer-supplied context (e.g. hostname, node version). Not validated by wicked-bus. |
 
-**Two-timer semantics**: with defaults `dedup_ttl_hours=24` and `ttl_hours=72`:
-- Events become invisible to polls at T+72h (`expires_at`)
-- Event rows are deleted at T+24h (`dedup_expires_at`)
-- Rows are deleted **before** they become invisible — a subscriber with a cursor older than 24h
-  will receive WB-003 because the rows no longer exist
+**Two-timer semantics** (amended 2026-10, FND-BUS-01 / wicked-bus#101): with defaults
+`dedup_ttl_hours=24` and `ttl_hours=72`:
+- A reused `idempotency_key` is a duplicate until T+24h (`dedup_expires_at`); afterwards emit
+  releases the key from the still-living row
+- Event rows are swept after T+72h (`expires_at`) — unless an active cursor still owes them, in
+  which case `unacked_policy` (`retain` default / `archive` / `discard`) decides and the sweep
+  reports it; `poll()` delivers any row that still exists
 
 **Write behavior**:
 - `event_id`: assigned by SQLite AUTOINCREMENT
