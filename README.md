@@ -144,7 +144,7 @@ db.close();
 | `list` | List registrations |
 | `ack` | Acknowledge events (advance cursor) |
 | `replay` | Reset a cursor to a specific position |
-| `cleanup` | Run the TTL sweep: `--dry-run`, `--archive`, `--tiered`, `--unacked-policy retain\|archive\|discard`; prints the reconciliation report |
+| `cleanup` | Run the TTL sweep: `--dry-run`, `--archive`, `--tiered`, `--unacked-policy retain\|archive\|discard`, `--retention-days N` (retain cap, default 30); prints the reconciliation report |
 
 All commands output structured JSON. Errors go to stderr with codes from the WB-0xx taxonomy (WB-001 through WB-014).
 
@@ -204,8 +204,11 @@ What "durable" means here, precisely (FND-BUS-01/02/03):
   `retain` (default — kept and still delivered), `archive` (copied to `events_archive`, then
   deleted) or `discard`. Every sweep returns a reconciliation report
   (`unacked: { retained|archived|discarded, cursors: [{cursor_id, count, oldest_event_id, …}] }`),
-  so a loss is always named, never silent. Under `retain` an abandoned-but-registered cursor holds
-  its backlog — deregister it (`wicked-bus deregister`) or choose `archive`/`discard`.
+  so a loss is always named, never silent. Under `retain` the backlog is capped at
+  `unacked_retention_days` (30 by default): an owed event emitted longer ago is **archived**
+  (`events_archive`, or the warm bucket with `--tiered`), never discarded, and its cursor line
+  says `disposition: "archived", reason: "retention_cap"`. So an abandoned-but-registered cursor
+  holds at most 30 days of backlog live; deregister it (`wicked-bus deregister`) to release it sooner.
 - **Dedup is a separate window** (`dedup_ttl_hours`, 24 h default): within it a reused
   `idempotency_key` is WB-002; after it the key is released from the still-living row and the new
   event is accepted.

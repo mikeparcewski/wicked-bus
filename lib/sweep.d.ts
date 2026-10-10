@@ -25,17 +25,28 @@ export interface UnackedCursorReport {
   oldest_event_id: number;
   newest_event_id: number;
   disposition: 'retained' | 'archived' | 'discarded';
+  /**
+   * Why: 'unacked_policy' (the configured policy decided), 'retention_cap'
+   * (archived: emitted more than `unacked_retention_days` ago), or
+   * 'retention_cap_pending' (over the cap, not moved this tiered pass because
+   * its bucket was locked or the batch was full; retried on the next sweep).
+   */
+  reason: 'unacked_policy' | 'retention_cap' | 'retention_cap_pending';
 }
 
 /**
  * Reconciliation report: expired events an active cursor had not acked (or
- * that had pending delivery_attempts), and what the sweep did with them. The
- * single count key is the disposition — `retained`, `archived` or `discarded`.
+ * that had pending delivery_attempts), what the sweep did with them and why.
+ * The policy's own count key is always present (`retained`, `archived` or
+ * `discarded`); under 'retain', `archived` also appears when the retention
+ * cap archived rows. One cursor line per (cursor, disposition, reason).
  */
 export interface UnackedReport {
   retained?: number;
   archived?: number;
   discarded?: number;
+  /** The `unacked_retention_days` cap in force for this pass. */
+  retention_cap_days: number;
   cursors: UnackedCursorReport[];
 }
 
@@ -52,6 +63,8 @@ export interface SweepConfig {
   archive_mode?: boolean;
   /** Default 'retain': an owed expired event is never swept. */
   unacked_policy?: UnackedPolicy;
+  /** Retain cap in days (default 30): older owed rows are archived, never discarded. */
+  unacked_retention_days?: number;
   /** Run the tiered sweep (lib/sweep-v2.js) from runConfiguredSweep/startSweep. */
   tiered_archive?: boolean;
   /** Test override for "now" (epoch ms). */
@@ -66,7 +79,30 @@ export interface SweepConfig {
 export function collectOwedExpired(
   db: SqliteDatabase,
   now: number,
-): Array<Omit<UnackedCursorReport, 'disposition'>>;
+): Array<Omit<UnackedCursorReport, 'disposition' | 'reason'>>;
+
+/** Default `unacked_retention_days` (30). */
+export const DEFAULT_UNACKED_RETENTION_DAYS: number;
+
+/** Validate `config.unacked_retention_days` (default 30); throws unless a positive number. */
+export function resolveRetentionCapDays(config: { unacked_retention_days?: unknown } | null | undefined): number;
+
+/** The pairs in `temp._wb_owed`, each flagged `over_cap` (emitted more than `capDays` before `now`). */
+export function owedPairsWithCap(
+  db: SqliteDatabase,
+  now: number,
+  capDays: number,
+): Array<{ event_id: number; cursor_id: string; over_cap: boolean }>;
+
+/** Build the reconciliation report from owed pairs and a per-pair fate. */
+export function buildUnackedReport(
+  pairs: Array<{ event_id: number; cursor_id: string; over_cap: boolean }>,
+  fateOf: (pair: { event_id: number; cursor_id: string; over_cap: boolean }) => {
+    disposition: UnackedCursorReport['disposition'];
+    reason: UnackedCursorReport['reason'];
+  },
+  opts: { policy: UnackedPolicy; capDays: number },
+): UnackedReport;
 
 /**
  * Run a single sweep pass. An event is removed only after its lifetime

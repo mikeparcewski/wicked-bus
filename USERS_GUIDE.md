@@ -449,14 +449,15 @@ To prevent this, poll frequently enough that events don't age out before you rea
 
 ### "Events are disappearing"
 
-Events are removed by the sweep after `expires_at` (`ttl_hours`, 72h by default) once no active cursor owes them. An expired event a registered cursor has not acked is kept under the default `unacked_policy: "retain"`; with `"archive"` it is copied to `events_archive` first, with `"discard"` it is deleted — and either way `wicked-bus cleanup` (and every sweep result) names it in the `unacked` report, per cursor.
+Events are removed by the sweep after `expires_at` (`ttl_hours`, 72h by default) once no active cursor owes them. An expired event a registered cursor has not acked is kept under the default `unacked_policy: "retain"`; with `"archive"` it is copied to `events_archive` first, with `"discard"` it is deleted. Under `"retain"` the backlog is capped at `unacked_retention_days` (default 30): an owed event emitted longer ago is archived (never discarded) with `reason: "retention_cap"` on its cursor line. Either way `wicked-bus cleanup` (and every sweep result) names it in the `unacked` report, per cursor.
 
 If you need longer retention for events nobody owes, raise `ttl_hours`. `dedup_ttl_hours` is only the idempotency window and must be `<= ttl_hours`:
 
 ```json
 {
   "ttl_hours": 168,
-  "unacked_policy": "retain"
+  "unacked_policy": "retain",
+  "unacked_retention_days": 30
 }
 ```
 

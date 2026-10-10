@@ -161,6 +161,113 @@ describe('FND-BUS retention / tiers / commit boundary / DLQ-CAS', () => {
     db = openDb(config);
   });
 
+  // ------------------------------------------- BUS-01 retention cap (ruling 2026-10-10)
+  const DAY = 24 * HOUR;
+
+  it('BUS-01 cap: under retain, an owed event older than 30 days is ARCHIVED (never discarded) and reported with its reason', () => {
+    const cursor = subscriber();
+    const old = emitFixture().event_id;
+    const recent = emitFixture().event_id;
+    const now = Date.now() + 31 * DAY;
+    // `recent` was emitted 2 days before "now": expired, owed, inside the cap.
+    db.prepare('UPDATE events SET emitted_at = ?, expires_at = ? WHERE event_id = ?').run(now - 2 * DAY, now - DAY, recent);
+    const res = runSweep(db, { ...config, now });
+    expect(res.unacked_policy).toBe('retain');
+    expect(res.events_deleted).toBe(1);
+    expect(res.unacked).toMatchObject({ retained: 1, archived: 1, retention_cap_days: 30 });
+    expect(res.unacked.cursors).toEqual([
+      expect.objectContaining({ cursor_id: cursor, count: 1, oldest_event_id: old, disposition: 'archived', reason: 'retention_cap' }),
+      expect.objectContaining({ cursor_id: cursor, count: 1, oldest_event_id: recent, disposition: 'retained', reason: 'unacked_policy' }),
+    ]);
+    expect(rowExists(old)).toBe(false);
+    expect(db.prepare('SELECT event_id FROM events_archive WHERE event_id = ?').get(old)).toBeTruthy();
+    expect(rowExists(recent)).toBe(true);
+    // The cursor is now behind the live tier: poll names it (WB-003) so the
+    // subscriber re-anchors onto what is still live, never silently.
+    expect(() => poll(db, cursor)).toThrow(expect.objectContaining({ error: 'WB-003' }));
+  });
+
+  it('BUS-01 cap: the cap is configurable (unacked_retention_days) and validated', () => {
+    subscriber();
+    const { event_id } = emitFixture();
+    const now = Date.now() + 10 * DAY;
+    const kept = runSweep(db, { ...config, now });
+    expect(kept.unacked).toMatchObject({ retained: 1, retention_cap_days: 30 });
+    expect(rowExists(event_id)).toBe(true);
+    const capped = runSweep(db, { ...config, now, unacked_retention_days: 7 });
+    expect(capped.unacked).toMatchObject({ retained: 0, archived: 1, retention_cap_days: 7 });
+    expect(rowExists(event_id)).toBe(false);
+    expect(db.prepare('SELECT event_id FROM events_archive WHERE event_id = ?').get(event_id)).toBeTruthy();
+    expect(() => runSweep(db, { ...config, unacked_retention_days: 0 })).toThrow(/unacked_retention_days/);
+    fs.writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ unacked_retention_days: -1 }));
+    expect(() => loadConfig()).toThrow(/unacked_retention_days/);
+    fs.writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ unacked_retention_days: 14 }));
+    expect(loadConfig().unacked_retention_days).toBe(14);
+  });
+
+  it('BUS-01 cap: the tiered sweep moves over-cap owed rows to the warm tier and names them', async () => {
+    const { runSweepV2 } = await import('../../lib/sweep-v2.js');
+    const cursor = subscriber();
+    const old = emitFixture().event_id;
+    const recent = emitFixture().event_id;
+    const now = Date.now() + 31 * DAY;
+    db.prepare('UPDATE events SET emitted_at = ?, expires_at = ? WHERE event_id = ?').run(now - 2 * DAY, now - DAY, recent);
+    const res = runSweepV2(db, { data_dir: tmpDir, now });
+    expect(res.events_moved).toBe(1);
+    expect(res.unacked).toMatchObject({ retained: 1, archived: 1 });
+    expect(res.unacked.cursors).toEqual([
+      expect.objectContaining({ cursor_id: cursor, oldest_event_id: old, disposition: 'archived', reason: 'retention_cap' }),
+      expect.objectContaining({ cursor_id: cursor, oldest_event_id: recent, disposition: 'retained', reason: 'unacked_policy' }),
+    ]);
+    expect(rowExists(old)).toBe(false);
+    expect(rowExists(recent)).toBe(true);
+    expect(pollResolve(db, archiveDir(tmpDir), { lastEventId: 0 }).map((r) => r.event_id)).toContain(old);
+  });
+
+  it('BUS-01 cap: a tiered pass names over-cap rows past its batch as retention_cap_pending (sweep and dry-run agree)', async () => {
+    const { runSweepV2 } = await import('../../lib/sweep-v2.js');
+    const cursor = subscriber();
+    const a = emitFixture().event_id;
+    const b = emitFixture().event_id;
+    db.close();
+    fs.writeFileSync(join(tmpDir, 'config.json'), JSON.stringify({ tiered_archive: true, sweep_batch_size: 1 }));
+    // The CLI dry-run has no --now, so age the rows instead.
+    const aged = new Database(join(tmpDir, 'bus.db'));
+    aged.prepare('UPDATE events SET emitted_at = emitted_at - ?, expires_at = expires_at - ?').run(31 * DAY, 31 * DAY);
+    aged.close();
+    const dry = JSON.parse(run(['cleanup', '--dry-run'], { dataDir: tmpDir }).stdout);
+    expect(dry).toMatchObject({ events_moved: 1, unacked: { archived: 1, retained: 1 } });
+    expect(dry.unacked.cursors).toEqual([
+      expect.objectContaining({ cursor_id: cursor, oldest_event_id: a, disposition: 'archived', reason: 'retention_cap' }),
+      expect.objectContaining({ cursor_id: cursor, oldest_event_id: b, disposition: 'retained', reason: 'retention_cap_pending' }),
+    ]);
+    db = openDb(config);
+    const res = runSweepV2(db, { data_dir: tmpDir, sweep_batch_size: 1 });
+    expect(res.events_moved).toBe(1);
+    expect(res.unacked.cursors).toEqual(dry.unacked.cursors);
+    expect(rowExists(a)).toBe(false);
+    expect(rowExists(b)).toBe(true);
+  });
+
+  it('BUS-01 cap: CLI cleanup --dry-run and --retention-days report the cap', () => {
+    const cursor = subscriber();
+    const { event_id } = emitFixture();
+    const emitted = Date.now() - 10 * DAY;
+    db.prepare('UPDATE events SET emitted_at = ?, expires_at = ?, dedup_expires_at = ? WHERE event_id = ?')
+      .run(emitted, emitted + 3 * DAY, emitted + DAY, event_id);
+    db.close();
+    const dry = JSON.parse(run(['cleanup', '--dry-run', '--retention-days', '7'], { dataDir: tmpDir }).stdout);
+    expect(dry).toMatchObject({ events_deleted: 1, unacked: { retained: 0, archived: 1, retention_cap_days: 7 }, dry_run: true });
+    expect(dry.unacked.cursors).toEqual([expect.objectContaining({ cursor_id: cursor, disposition: 'archived', reason: 'retention_cap' })]);
+    const kept = JSON.parse(run(['cleanup'], { dataDir: tmpDir }).stdout);
+    expect(kept).toMatchObject({ events_deleted: 0, unacked: { retained: 1, retention_cap_days: 30 } });
+    const archived = JSON.parse(run(['cleanup', '--retention-days', '7'], { dataDir: tmpDir }).stdout);
+    expect(archived).toMatchObject({ events_deleted: 1, unacked: { archived: 1 } });
+    db = openDb(config);
+    expect(rowExists(event_id)).toBe(false);
+    expect(db.prepare('SELECT event_id FROM events_archive WHERE event_id = ?').get(event_id)).toBeTruthy();
+  });
+
   // ---------------------------------------------------------------- BUS-02
   it('BUS-02: default CLI cleanup stays in-db (no warm buckets); --tiered writes a monthly bucket queries read', () => {
     const { event_id } = emitFixture();

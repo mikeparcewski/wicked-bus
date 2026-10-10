@@ -132,6 +132,8 @@ emit ──────── dedup_expires_at (24h) ──────── ex
 The sweep (v1 and tiered) keys only on `expires_at`. An expired event an active cursor whose filter
 matches has not acked, or that has pending `delivery_attempts`, is retained by default
 (`unacked_policy: retain`), archived, or discarded, and the sweep result reports it per cursor.
+Under `retain` the backlog is capped at `unacked_retention_days` (30 by default): an owed event
+emitted longer ago is archived, never discarded, and reported with `reason: "retention_cap"`.
 `poll()` has no expiry filter, so a retained event is still delivered. (Before 2.4 the sweep
 deleted on `dedup_expires_at`, dropping unacked events after 24 h — FND-BUS-01, #101.)
 
