@@ -244,6 +244,9 @@ function sweepFlow(db: SqliteDatabase, config: BusConfig): void {
   expectType<'retain' | 'archive' | 'discard'>(r1.unacked_policy);
   expectType<number | undefined>(r1.unacked.retained);
   expectType<string>(r1.unacked.cursors[0]!.cursor_id);
+  expectType<'unacked_policy' | 'retention_cap' | 'retention_cap_pending'>(r1.unacked.cursors[0]!.reason);
+  expectType<number>(r1.unacked.retention_cap_days);
+  expectType<number>(config.unacked_retention_days);
   expectType<'retain' | 'archive' | 'discard'>(config.unacked_policy);
   expectType<boolean>(config.tiered_archive);
   const rc = runConfiguredSweep(db, config);

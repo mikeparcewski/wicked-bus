@@ -49,6 +49,13 @@ export interface BusConfig {
    */
   unacked_policy: 'retain' | 'archive' | 'discard';
   /**
+   * Retention cap in days (default 30) for the unacked backlog under 'retain':
+   * an owed expired event emitted longer ago is ARCHIVED (`events_archive`, or
+   * the warm bucket on the tiered sweep), never discarded, and the sweep
+   * report names it with `reason: 'retention_cap'` (#101). Must be > 0.
+   */
+  unacked_retention_days: number;
+  /**
    * Run the monthly warm-bucket tier (lib/sweep-v2.js) from `wicked-bus
    * cleanup` and the background sweep instead of the in-db v1 sweep
    * (FND-BUS-02, #102). Default false.
@@ -76,6 +83,7 @@ export const DEFAULTS: {
   checkpoint_interval_minutes: number;
   archive_mode: boolean;
   unacked_policy: 'retain';
+  unacked_retention_days: number;
   tiered_archive: boolean;
   log_level: LogLevel;
   db_path: null;

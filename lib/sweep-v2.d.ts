@@ -16,6 +16,8 @@ export const DEFAULT_LIVE_BLOAT_ROWS: number;
 export interface SweepV2Config {
   /** Retention for expired events an active cursor still owes (default 'retain'; #101). */
   unacked_policy?: import('./sweep.js').UnackedPolicy;
+  /** Retain cap in days (default 30): older owed rows move to the warm tier (#101). */
+  unacked_retention_days?: number;
   /** Parent dir for archive/. Defaults to WICKED_BUS_DATA_DIR. */
   data_dir?: string;
   /** Rows per batch (default 5000). */
@@ -48,7 +50,7 @@ export interface LiveTierBloatWarning {
 export interface SweepV2Result {
   /** Retention policy applied to expired events an active cursor still owes (#101). */
   unacked_policy: import('./sweep.js').UnackedPolicy;
-  /** Reconciliation report; the tiered sweep never discards (`retained` or `archived`). */
+  /** Reconciliation report: what happened to each owed row and why (#101). */
   unacked: import('./sweep.js').UnackedReport;
   events_moved: number;
   buckets_touched: string[];
