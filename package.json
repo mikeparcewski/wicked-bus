@@ -41,7 +41,7 @@
     "better-sqlite3": ">=9.0.0"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.0.0",
     "@vitest/coverage-v8": "^5.0.0",
     "better-sqlite3": "^13.0.0",
     "typescript": "^7.0.0",
